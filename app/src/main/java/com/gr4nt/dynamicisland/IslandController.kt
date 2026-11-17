@@ -47,8 +47,12 @@ object IslandController {
                 ?: if(existing?.incoming==true) null else calls.values.lastOrNull {
                     it.pkg==item.pkg && it.title==item.title && !it.incoming
                 }
-            val callItem=if(item.incoming) item.copy(media=null) else item.copy(media=null,callStartedAtElapsed=
-                known?.callStartedAtElapsed ?: item.callStartedAtElapsed ?: now)
+            val observedWaiting=existing?.callStartedAtElapsed==null && existing!=null || calls.values.any {
+                it.pkg==item.pkg && it.title==item.title && it.callStartedAtElapsed==null
+            }
+            val start=CallTiming.start(item.incoming,item.callConnected || item.callStartedAtElapsed!=null,
+                known?.callStartedAtElapsed,observedWaiting,item.callStartedAtElapsed,now)
+            val callItem=item.copy(media=null,callStartedAtElapsed=start,callConnected=start!=null)
             // Some dialers replace the incoming notification with a new ongoing key.
             if(!item.incoming && (known==null || previous?.key==item.key)) calls.entries.removeAll { it.value.pkg==item.pkg && it.value.incoming }
             calls[item.key]=callItem
@@ -130,6 +134,12 @@ object IslandController {
     fun action(action: IslandAction) { if(action.reply) reply() else { sendIntent { action.intent.send() }; if(state.value.item?.media == null || state.value.item?.call==true) collapse() } }
     private fun sendIntent(block: ()->Unit) { runCatching(block).onFailure { toast("This notification action is no longer available") } }
     fun copyCode() { val code=state.value.item?.code ?: return;(context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Verification code",code));toast("Code copied");collapse() }
+    fun openAudioOutput() {
+        // Android owns the list of actual connected output devices.
+        runCatching { context.startActivity(Intent(android.provider.Settings.Panel.ACTION_VOLUME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            .recoverCatching { context.startActivity(Intent(android.provider.Settings.ACTION_SOUND_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            .onFailure { toast("Open Sound settings to choose audio output") }
+    }
     fun toast(text: String) { Toast.makeText(context,text,Toast.LENGTH_SHORT).show() }
     fun preview(kind: String = "message") {
         val base=IslandItem("preview","preview","Messages","Ama","See you in a few minutes. I’m bringing the camera.")

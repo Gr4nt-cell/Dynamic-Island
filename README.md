@@ -1,10 +1,16 @@
+## Version 1.4
+
+Large cards are 10% shorter (366 × 201.6 dp); the other three sizes are unchanged. Expanded call artwork and controls are vertically centred with a clear lane for the camera. The `island-colour` branch's multicolor waveform palette is restored for music and call pills, and expanded media uses album art, a waveform, colored timeline and plain transport/output controls.
+
+Call timing requires connection evidence (an active chronometer or explicit connected-call status), rather than simply an ongoing notification. Dialing/ringing shows Calling without a timer. A transition observed from ringing/dialing starts at answer detection, preventing reused notification timestamps from including ringing time. Unambiguous connection data varies by dialer; an uncertain call keeps the waiting label.
+
 ## Version 1.3 — reference motion and four island sizes
 
 All islands use opaque black backgrounds, white titles, gray supporting text, original app/album art and colored status/action controls. The settings retain their glass appearance. The overlay uses one spring-driven shell for width, height and corner radius; content fades out before a layout switch and fades in after expansion begins. The physical camera anchor does not jump when a pill expands.
 
 | Tier | Default size (dp) | Content |
 | --- | --- | --- |
-| Large | 366 × 224 | Expanded media, long messages, actionable notifications, codes and replies |
+| Large | 366 × 201.6 | Expanded media, long messages, actionable notifications, codes and replies |
 | Medium | 366 × 96 | Expanded calls and brief notifications |
 | Small expanded | 250 × 48 | Charging, low battery, ringer and wired headphones |
 | Pill | 148 × 37 | Media artwork/waveform or call duration/dialer |

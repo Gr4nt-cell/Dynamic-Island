@@ -86,7 +86,7 @@ class MainActivity : ComponentActivity() {
             AnimatedVisibility(advanced,enter=fadeIn(IslandMotion.fadeIn())+expandVertically(IslandMotion.settle()),exit=fadeOut(IslandMotion.fadeOut())+shrinkVertically(IslandMotion.exit())) {
                 Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 IslandText("Four consistent shapes. Size scales every preset together; app content never stretches a card.",13,Secondary,lines=3)
-                IslandText("Large 366 × 224 · Medium 366 × 96\nSmall 250 × 48 · Pill 148 × 37",13,Secondary,lines=2)
+                IslandText("Large 366 × 201.6 · Medium 366 × 96\nSmall 250 × 48 · Pill 148 × 37",13,Secondary,lines=2)
                 listOf("Large media" to "media","Large notification" to "large","Small charging" to "charging","Small low battery" to "battery","Media pill" to "music-pill").forEach { (label,kind) ->
                     GlassButton(label,Modifier.fillMaxWidth(),onClick={ if(connected)IslandController.preview(kind) else localPreview=true })
                 }
@@ -119,7 +119,7 @@ class MainActivity : ComponentActivity() {
             IslandText("Disable the system music island for each music app in Settings → Notifications → Hyper Island → App permissions. This app cannot remove it.",13,Secondary,lines=5)
             IslandText("Without root, native heads-up notifications can still appear. Android may hide sensitive notification text. Notification actions and camera alignment depend on your device and apps.",12,Secondary,lines=5)
         }
-        IslandText("Dynamic Island 1.3 · Android 11+\nDesigned for centre punch-hole cameras.",12,Secondary,lines=2)
+        IslandText("Dynamic Island 1.4 · Android 11+\nDesigned for centre punch-hole cameras.",12,Secondary,lines=2)
         Spacer(Modifier.height(20.dp))
     }
     }

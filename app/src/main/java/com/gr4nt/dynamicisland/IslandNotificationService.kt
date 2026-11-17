@@ -94,13 +94,15 @@ class IslandNotificationService : NotificationListenerService() {
         val source=if(media != null) cover else icon
         val accent=dominant(source)
         val callType=e.getInt("android.callType",0)
-        val incoming=call && (callType == 1 || (callType == 0 && (actions.any { it.kind == "accept" } || actions.size >= 2)))
-        val callStart=NotificationRules.callStart(n.`when`,e.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER),incoming,System.currentTimeMillis(),SystemClock.elapsedRealtime())
+        val callText="$text ${e.getCharSequence(Notification.EXTRA_SUB_TEXT).orEmpty()}"
+        val incoming=call && CallTiming.incoming(callType,actions.any { it.kind=="accept" },callText)
+        val connected=call && CallTiming.connected(incoming,e.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER),callText)
+        val callStart=if(connected) NotificationRules.callStart(n.`when`,e.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER),incoming,System.currentTimeMillis(),SystemClock.elapsedRealtime()) else null
         val callIcon=if(call) runCatching {
             getSystemService(android.telecom.TelecomManager::class.java).defaultDialerPackage
                 ?.let { packageManager.getApplicationIcon(it).softwareBitmap() }
         }.getOrNull() ?: icon else icon
-        return IslandItem(sbn.key,pkg,app,title,text,callIcon,cover,n.contentIntent,actions,call,incoming,avatar,media,NotificationRules.code("$title $text"),accent,callStart)
+        return IslandItem(sbn.key,pkg,app,title,text,callIcon,cover,n.contentIntent,actions,call,incoming,avatar,media,NotificationRules.code("$title $text"),accent,callStart,callConnected=connected)
     }
     private fun Drawable.softwareBitmap(): Bitmap = toBitmap(128,128,Bitmap.Config.ARGB_8888).copy(Bitmap.Config.ARGB_8888,false)
     private fun dominant(bitmap: Bitmap?): Int {

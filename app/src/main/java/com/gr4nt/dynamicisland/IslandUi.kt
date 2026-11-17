@@ -34,7 +34,28 @@ import kotlinx.coroutines.*
 import kotlin.math.roundToInt
 
 val IslandGreen=Color(0xFF34C759)
+private val EqColors=listOf(Color(0xFFFF2D55),Color(0xFFFF9F0A),Color(0xFF30D158),Color(0xFF0A84FF))
 val IslandRed=Color(0xFFFF3B30)
+private val LocalIslandAccent=compositionLocalOf { Color(0xFFBF5AF2) }
+/** Saturated artwork colour, with a stable vivid fallback for monochrome/missing art. */
+private fun vividAccent(item: IslandItem): Color {
+    val palette=listOf(0xFFBF5AF2,0xFF64D2FF,0xFFFF2D55,0xFFFF9F0A,0xFF30D158)
+    val fallback=Color(palette[(item.pkg.hashCode() and 0x7fffffff)%palette.size])
+    val bitmap=item.largeIcon ?: item.appIcon ?: return fallback
+    return runCatching {
+        val copy=bitmap.copy(Bitmap.Config.ARGB_8888,false) ?: return fallback
+        try {
+            val hsv=FloatArray(3);var score=0f;var hue=0f
+            for(x in 0 until copy.width step 8) for(y in 0 until copy.height step 8) {
+                val px=copy.getPixel(x,y)
+                if(android.graphics.Color.alpha(px)<128) continue
+                android.graphics.Color.colorToHSV(px,hsv)
+                if(hsv[1]*hsv[2]>score) { score=hsv[1]*hsv[2];hue=hsv[0] }
+            }
+            if(score<.15f) fallback else Color(android.graphics.Color.HSVToColor(floatArrayOf(hue,.8f,1f)))
+        } finally { copy.recycle() }
+    }.getOrDefault(fallback)
+}
 private val ReplyVector=ImageVector.Builder("Reply",24.dp,24.dp,24f,24f).apply {
     path(fill=null,stroke=SolidColor(Color.White),strokeLineWidth=1.85f,strokeLineCap=StrokeCap.Round,strokeLineJoin=StrokeJoin.Round) {
         moveTo(9f,5f);lineTo(3f,11f);lineTo(9f,17f);moveTo(3f,11f);lineTo(13f,11f);curveTo(18f,11f,21f,14f,21f,20f)
@@ -107,6 +128,8 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
         ) {
             LensMask(Modifier.matchParentSize(),layout)
             // Measure content at its destination size while the shell morphs and clips it.
+            val accent=remember(item.largeIcon,item.appIcon,item.pkg) { vividAccent(item) }
+            CompositionLocalProvider(LocalIslandAccent provides accent) {
             Box(Modifier.requiredSize(contentWidth,tier.height.dp).graphicsLayer {
                 alpha=reveal.value.coerceIn(0f,1f)
                 translationY=4.dp.toPx()*(1-reveal.value)
@@ -115,10 +138,10 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
                     compact && item.call -> CallPill(item,Modifier.fillMaxWidth())
                     compact -> MusicPill(item,Modifier.fillMaxWidth())
                     tier==IslandTier.SMALL -> StatusCard(item)
+                    item.call -> CallCard(item)
                     else -> Column(Modifier.fillMaxSize()) {
                         CameraBand(layout)
                         when {
-                            item.call -> CallCard(item)
                             item.media!=null -> MusicCard(item,Modifier.fillMaxWidth().weight(1f).padding(horizontal=20.dp,vertical=4.dp))
                             tier==IslandTier.MEDIUM -> BriefCard(item)
                             else -> Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -129,6 +152,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
                         Spacer(Modifier.height(10.dp))
                     }
                 }
+            }
             }
         }
     }
@@ -214,62 +238,88 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
 @Composable private fun CallCard(item: IslandItem) {
     val decline=item.actions.firstOrNull { it.kind=="decline" }
     val accept=item.actions.firstOrNull { it.kind=="accept" }
-    Row(Modifier.fillMaxWidth().padding(horizontal=20.dp,vertical=4.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-        if(item.avatar!=null) Image(item.avatar.asImageBitmap(),null,Modifier.size(38.dp).clip(CircleShape),contentScale=ContentScale.Crop)
-        else Box(Modifier.size(38.dp).softGlass(CircleShape),contentAlignment=Alignment.Center) {
-            val initial=item.title.trim().firstOrNull()?.takeIf { it.isLetter() }
-            if(initial!=null) IslandText(initial.uppercase(),18,weight=FontWeight.SemiBold) else Icon(Icons.Rounded.Person,null,tint=LocalGlassPalette.current.text)
+    // Both side groups are centred in the shell, with an empty lane for the lens.
+    Row(Modifier.fillMaxSize().padding(horizontal=20.dp),verticalAlignment=Alignment.CenterVertically) {
+        Row(Modifier.weight(1f),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.size(38.dp).testTag("call-avatar").clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFF5E5CE6),Color(0xFFBF5AF2)))),contentAlignment=Alignment.Center) {
+                if(item.avatar!=null) Image(item.avatar.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+                else {
+                    val initial=item.title.trim().firstOrNull()?.takeIf { it.isLetter() }
+                    if(initial!=null) IslandText(initial.uppercase(),18,weight=FontWeight.SemiBold) else Icon(Icons.Rounded.Person,null,tint=Color.White)
+                }
+            }
+            Column(Modifier.weight(1f)) {
+                IslandText(item.title,16,weight=FontWeight.SemiBold,lines=1)
+                IslandText(if(item.incoming) "Incoming Call" else if(item.callStartedAtElapsed==null) "Calling…" else "Ongoing Call",12,Secondary,lines=1)
+            }
         }
-        Column(Modifier.weight(1f)) {
-            IslandText(item.title,16,weight=FontWeight.SemiBold,lines=1)
-            IslandText(if(item.incoming) "Incoming Call" else "Ongoing Call",12,Secondary,lines=1)
+        Spacer(Modifier.width(36.dp))
+        Row(Modifier.weight(1f),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
+            if(decline!=null) RoundButton(if(item.incoming) "Decline call" else "Hang up",Icons.Rounded.CallEnd,IslandRed,40.dp) { IslandController.action(decline) }
+            if(item.incoming && accept!=null) { Spacer(Modifier.width(10.dp));RoundButton("Accept call",Icons.Rounded.Call,IslandGreen,40.dp) { IslandController.action(accept) } }
         }
-        if(decline!=null) RoundButton(if(item.incoming) "Decline call" else "Hang up",Icons.Rounded.CallEnd,IslandRed,40.dp) { IslandController.action(decline) }
-        if(item.incoming && accept!=null) RoundButton("Accept call",Icons.Rounded.Call,IslandGreen,40.dp) { IslandController.action(accept) }
+    }
+}
+@Composable private fun ColorWaveform(playing: Boolean, modifier: Modifier=Modifier, bars: Int=4) {
+    val transition=rememberInfiniteTransition(label="colour branch visualizer")
+    Row(modifier.height(20.dp).semantics { contentDescription="Color visualizer" },horizontalArrangement=Arrangement.spacedBy(1.5.dp),verticalAlignment=Alignment.CenterVertically) {
+        repeat(bars) { i ->
+            val h by transition.animateFloat(3f+(i%2)*3,16f-(i%3)*2,infiniteRepeatable(tween(IslandMotion.waveMillis+i*60,easing=LinearEasing),RepeatMode.Reverse),label="colour level $i")
+            Box(Modifier.width(2.5.dp).height(if(playing) h.dp else 3.dp).clip(CircleShape).background(EqColors[i%EqColors.size]))
+        }
     }
 }
 @Composable private fun MusicPill(item: IslandItem, modifier: Modifier) {
     Row(modifier.height(IslandTier.PILL.height.dp).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-        if(item.largeIcon!=null) Image(item.largeIcon.asImageBitmap(),null,Modifier.size(22.dp,15.dp).clip(RoundedCornerShape(3.dp)),contentScale=ContentScale.Crop)
-        else Icon(Icons.Rounded.MusicNote,null,Modifier.size(18.dp),tint=SettingsAccent)
-        // This transparent middle section sits directly over the physical lens.
+        if(item.largeIcon!=null) Image(item.largeIcon.asImageBitmap(),null,Modifier.size(22.dp).clip(RoundedCornerShape(4.dp)),contentScale=ContentScale.Crop)
+        else Icon(Icons.Rounded.MusicNote,null,Modifier.size(18.dp),tint=LocalIslandAccent.current)
         Spacer(Modifier.width(30.dp))
-        val transition=rememberInfiniteTransition(label="playback waveform")
-        Row(horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically) {
-            repeat(4) { i ->
-                val h by transition.animateFloat(3f+(i%2)*3,14f-(i%3)*2,infiniteRepeatable(tween(IslandMotion.waveMillis+i*60,easing=LinearEasing),RepeatMode.Reverse),label="level $i")
-                Box(Modifier.width(2.5.dp).height(if(item.media?.playing==true) h.dp else 3.dp).clip(CircleShape).background(Color(item.accent)))
-            }
-        }
+        ColorWaveform(item.media?.playing==true)
     }
 }
 @Composable private fun MusicCard(item: IslandItem,modifier: Modifier) {
     val media=item.media ?: return
+    val accent=LocalIslandAccent.current
     var position by remember(item.key) { mutableLongStateOf(media.elapsed()) }
-    LaunchedEffect(media) { while(true) { position=media.elapsed();delay(1000) } }
+    LaunchedEffect(media) { while(true) { position=media.elapsed();delay(500) } }
     Column(modifier,verticalArrangement=Arrangement.SpaceBetween) {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Art(item.largeIcon,48.dp)
-            Column(Modifier.weight(1f)) { IslandText(item.title,17,weight=FontWeight.SemiBold,lines=1);IslandText(item.text,14,Secondary,lines=1) }
+            Art(item.largeIcon,50.dp)
+            Column(Modifier.weight(1f)) { IslandText(item.title,16,weight=FontWeight.SemiBold,lines=1);IslandText(item.text,13,Secondary,lines=1) }
+            ColorWaveform(media.playing,bars=5)
         }
-        Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(Color.White.copy(alpha=.22f))) {
-            Box(Modifier.fillMaxWidth(if(media.duration>0) (position.toFloat()/media.duration).coerceIn(0f,1f) else 0f).fillMaxHeight().background(Color(item.accent)))
-        }
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-            IslandText(clock(position),11,Secondary)
-            IslandText("−"+clock((media.duration-position).coerceAtLeast(0)),11,Secondary)
-        }
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
-            val controls=item.actions.filterNot { it.reply }.filter { Regex("(?i)prev|back|rewind|play|pause|next|forward").containsMatchIn(it.title) }.take(3)
-            if(controls.isNotEmpty()) controls.forEachIndexed { i,a ->
-                NotificationIconButton(a,if(i==1)48.dp else 38.dp) { IslandController.action(a) }
-            } else {
-                RoundButton("Previous",Icons.Rounded.SkipPrevious,Color.Transparent,38.dp,flat=true) { media.controller?.transportControls?.skipToPrevious() }
-                RoundButton(if(media.playing)"Pause" else "Play",if(media.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,Color.Transparent,48.dp,flat=true) { if(media.playing)media.controller?.transportControls?.pause() else media.controller?.transportControls?.play() }
-                RoundButton("Next",Icons.Rounded.SkipNext,Color.Transparent,38.dp,flat=true) { media.controller?.transportControls?.skipToNext() }
+        Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            val fraction=if(media.duration>0) (position.toFloat()/media.duration).coerceIn(0f,1f) else 0f
+            Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(accent.copy(alpha=.24f))) {
+                Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(Brush.horizontalGradient(listOf(accent,Color(0xFF64D2FF)))))
+            }
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+                IslandText(clock(position),11,accent)
+                IslandText(if(media.duration>0) "−"+clock((media.duration-position).coerceAtLeast(0)) else "",11,accent)
             }
         }
-
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
+            MediaControl(Icons.Rounded.FastRewind,"Previous",42.dp,accent) { performMedia(item,"prev") }
+            MediaControl(if(media.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(media.playing)"Pause" else "Play",48.dp,accent) { performMedia(item,"toggle") }
+            MediaControl(Icons.Rounded.FastForward,"Next",42.dp,accent) { performMedia(item,"next") }
+            MediaControl(Icons.Rounded.Airplay,"Audio output",32.dp,accent) { IslandController.openAudioOutput() }
+        }
+    }
+}
+private fun performMedia(item: IslandItem, command: String) {
+    val controls=item.media?.controller?.transportControls
+    if(controls!=null) when(command) {
+        "prev" -> controls.skipToPrevious()
+        "next" -> controls.skipToNext()
+        else -> if(item.media?.playing==true) controls.pause() else controls.play()
+    } else {
+        val pattern=when(command) { "prev" -> "(?i)prev|back|rewind";"next" -> "(?i)next|forward";else -> "(?i)play|pause|resume" }
+        item.actions.firstOrNull { Regex(pattern).containsMatchIn(it.title) }?.let(IslandController::action)
+    }
+}
+@Composable private fun MediaControl(vector: ImageVector,label: String,size: Dp,tint: Color,click: ()->Unit) {
+    Box(Modifier.size(size).iosClickable(pressedScale=.9f,onClick=click),contentAlignment=Alignment.Center) {
+        Icon(vector,label,Modifier.size(size*.72f),tint=tint)
     }
 }
 private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);return "%d:%02d".format(seconds/60,seconds%60) }
@@ -313,14 +363,18 @@ private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);ret
 }
 
 @Composable private fun CallPill(item: IslandItem, modifier: Modifier) {
-    val fallbackStart=remember(item.key) { android.os.SystemClock.elapsedRealtime() }
-    val start=item.callStartedAtElapsed ?: fallbackStart
-    var duration by remember(start) { mutableLongStateOf((android.os.SystemClock.elapsedRealtime()-start).coerceAtLeast(0)) }
-    LaunchedEffect(start) { while(true) { duration=(android.os.SystemClock.elapsedRealtime()-start).coerceAtLeast(0);delay(1000) } }
+    val start=item.callStartedAtElapsed
+    var duration by remember(start) { mutableLongStateOf(if(start!=null) (android.os.SystemClock.elapsedRealtime()-start).coerceAtLeast(0) else 0) }
+    LaunchedEffect(start) { if(start!=null) while(true) { duration=(android.os.SystemClock.elapsedRealtime()-start).coerceAtLeast(0);delay(1000) } }
     Row(modifier.height(IslandTier.PILL.height.dp).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
-        IslandText(clock(duration),13,weight=FontWeight.SemiBold,lines=1,modifier=Modifier.width(44.dp).semantics { contentDescription="Call duration ${clock(duration)}" })
+        IslandText(if(start==null) "Calling…" else clock(duration),if(start==null)10 else 13,IslandGreen,weight=FontWeight.SemiBold,lines=1,
+            modifier=Modifier.width(44.dp).semantics { contentDescription=if(start==null) "Calling" else "Call duration ${clock(duration)}" })
         Spacer(Modifier.weight(1f))
-        if(item.appIcon!=null) Image(item.appIcon.asImageBitmap(),"Dialer",Modifier.size(22.dp).clip(RoundedCornerShape(6.dp)),contentScale=ContentScale.Crop)
-        else Icon(Icons.Rounded.Call,"Dialer",Modifier.size(20.dp),tint=IslandGreen)
+        Row(Modifier.width(42.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.End) {
+            if(item.appIcon!=null) Image(item.appIcon.asImageBitmap(),"Dialer",Modifier.size(16.dp).clip(RoundedCornerShape(4.dp)),contentScale=ContentScale.Crop)
+            else Icon(Icons.Rounded.Call,"Dialer",Modifier.size(15.dp),tint=IslandGreen)
+            Spacer(Modifier.width(4.dp))
+            ColorWaveform(start!=null,bars=4)
+        }
     }
 }

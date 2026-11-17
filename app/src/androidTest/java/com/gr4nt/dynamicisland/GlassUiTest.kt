@@ -42,6 +42,11 @@ class GlassUiTest {
         scene("call-light",false,base.copy(call=true,incoming=true,actions=listOf(IslandAction("Decline",intent,null),IslandAction("Accept",intent,null))))
         compose.onNodeWithContentDescription("Accept call").assertIsDisplayed()
         compose.onNodeWithContentDescription("Decline call").assertIsDisplayed()
+        val shell=compose.onNodeWithTag("island-shell").fetchSemanticsNode().boundsInRoot
+        val avatar=compose.onNodeWithTag("call-avatar",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+        val accept=compose.onNodeWithContentDescription("Accept call").fetchSemanticsNode().boundsInRoot
+        assertEquals(shell.center.y,avatar.center.y,1f)
+        assertEquals(shell.center.y,accept.center.y,1f)
     }
     @Test fun answeredCallShrinksToDurationPillAndReopensControls() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
@@ -110,12 +115,17 @@ class GlassUiTest {
         compose.setContent { Box(Modifier.fillMaxSize()) }
         try {
             compose.runOnIdle {
-                IslandController.post(incoming);IslandController.post(ongoing)
+                IslandController.post(incoming)
+                val answerObserved=SystemClock.elapsedRealtime()
+                IslandController.post(ongoing)
+                val connectedStart=IslandController.state.value.item?.callStartedAtElapsed
+                assertNotNull(connectedStart)
+                assertTrue(connectedStart!!>=answerObserved)
                 assertEquals(ongoing.key,IslandController.state.value.item?.key)
                 assertFalse(IslandController.state.value.expanded)
                 IslandController.post(refreshed)
                 assertEquals(refreshed.key,IslandController.state.value.item?.key)
-                assertEquals(ongoing.callStartedAtElapsed,IslandController.state.value.item?.callStartedAtElapsed)
+                assertEquals(connectedStart,IslandController.state.value.item?.callStartedAtElapsed)
                 IslandController.removed(incoming.key);IslandController.removed(ongoing.key)
                 assertEquals(refreshed.key,IslandController.state.value.item?.key)
             }
@@ -156,7 +166,7 @@ class GlassUiTest {
     }
     @Test fun largeCardsUseIdenticalDimensionsAndOpaqueBlackInLightMode() {
         scene("large-notification-black",false,base.copy(text="A long message with enough detail to need the large card. ".repeat(3)))
-        compose.onNodeWithTag("island-shell").assertWidthIsEqualTo(366.dp).assertHeightIsEqualTo(224.dp)
+        compose.onNodeWithTag("island-shell").assertWidthIsEqualTo(366.dp).assertHeightIsEqualTo(201.6.dp)
         val bitmap=compose.onNodeWithTag("island-shell").captureToImage().asAndroidBitmap()
         val pixel=bitmap.getPixel(bitmap.width/2,bitmap.height-12)
         assertEquals(android.graphics.Color.BLACK,pixel)
@@ -173,6 +183,32 @@ class GlassUiTest {
         compose.onNodeWithTag("island-shell").assertWidthIsEqualTo(250.dp).assertHeightIsEqualTo(48.dp)
         compose.onNodeWithText("Low Battery").assertIsDisplayed()
         capture("battery-small-black")
+    }
+    @Test fun outgoingCallDoesNotCountUntilAnswerAndKeepsItsTimerOnRefresh() {
+        val outgoing=base.copy(key="outgoing-wait",pkg="test.outgoing",call=true,text="Calling…")
+        compose.mainClock.autoAdvance=false
+        compose.setContent { val state by IslandController.state.collectAsState();IslandTheme { IslandOverlay(state,IslandLayout()) } }
+        try {
+            compose.runOnIdle { IslandController.post(outgoing) }
+            compose.mainClock.advanceTimeBy(5000)
+            compose.onNodeWithContentDescription("Calling",useUnmergedTree=true).assertIsDisplayed()
+            compose.onNodeWithContentDescription("Call duration",substring=true).assertDoesNotExist()
+            compose.runOnIdle { assertNull(IslandController.state.value.item?.callStartedAtElapsed) }
+            capture("outgoing-waiting-no-timer")
+            var answerStart: Long?=null
+            compose.runOnIdle {
+                val beforeAnswer=SystemClock.elapsedRealtime()
+                // A dialer reusing its original dialing timestamp must not add ringing time.
+                IslandController.post(outgoing.copy(text="Connected",callConnected=true,callStartedAtElapsed=beforeAnswer-20000))
+                answerStart=IslandController.state.value.item?.callStartedAtElapsed
+                assertTrue(answerStart!!>=beforeAnswer)
+                IslandController.post(outgoing.copy(text="Refreshed",callConnected=true))
+                assertEquals(answerStart,IslandController.state.value.item?.callStartedAtElapsed)
+            }
+            compose.mainClock.advanceTimeBy(1200)
+            compose.onNodeWithContentDescription("Call duration",substring=true).assertIsDisplayed()
+            capture("answered-colour-call-pill")
+        } finally { compose.runOnIdle { IslandController.removed(outgoing.key) } }
     }
     @Test fun settingsLightAndPreview() {
         compose.setContent { IslandTheme(forceDark=false) { SettingsScreen() } }
