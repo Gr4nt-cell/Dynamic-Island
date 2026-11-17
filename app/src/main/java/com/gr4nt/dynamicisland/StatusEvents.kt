@@ -25,7 +25,7 @@ object StatusEvents {
             override fun onReceive(ctx: Context, i: Intent) { runCatching { handle(ctx, i) }.onFailure { android.util.Log.e("DynamicIsland", "status event failed", it) } }
         }
         val f = IntentFilter().apply {
-            addAction(AudioManager.RINGER_MODE_CHANGED_ACTION); addAction(Intent.ACTION_BATTERY_CHANGED)
+            addAction(AudioManager.RINGER_MODE_CHANGED_ACTION); addAction(Intent.ACTION_BATTERY_CHANGED); addAction(Intent.ACTION_USER_PRESENT)
             addAction(Intent.ACTION_POWER_CONNECTED); addAction("android.net.wifi.WIFI_AP_STATE_CHANGED")
             addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
         }
@@ -57,6 +57,7 @@ object StatusEvents {
                 AudioManager.RINGER_MODE_VIBRATE -> IslandController.postStatus(StatusInfo("vibrate", "", "Vibrate"))
                 AudioManager.RINGER_MODE_NORMAL -> IslandController.postStatus(StatusInfo("ring", "", "Ring"))
             }
+            Intent.ACTION_USER_PRESENT -> IslandController.postStatus(StatusInfo("unlock","",""),false,1500)
             Intent.ACTION_POWER_CONNECTED -> {
                 val l = level(c.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)))
                 IslandController.postStatus(StatusInfo("charging", "Charging", "$l%", 0xFF30D158.toInt(), l))

@@ -36,8 +36,9 @@ class IslandNotificationService : NotificationListenerService() {
         if(sbn.packageName == packageName || n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
         val call=n.category == Notification.CATEGORY_CALL || n.extras.containsKey("android.callType")
         val media=n.category == Notification.CATEGORY_TRANSPORT || n.extras.containsKey(Notification.EXTRA_MEDIA_SESSION)
-        if(n.flags and Notification.FLAG_ONGOING_EVENT != 0 && !call && !media) return
-        if(n.category in listOf(Notification.CATEGORY_PROGRESS,Notification.CATEGORY_SERVICE) && !call && !media) return
+        val activity=activityKind(n,sbn.packageName)
+        if(n.flags and Notification.FLAG_ONGOING_EVENT != 0 && !call && !media && activity == null) return
+        if(n.category in listOf(Notification.CATEGORY_PROGRESS,Notification.CATEGORY_SERVICE) && !call && !media && activity == null) return
         notifications[sbn.key]=sbn
         val revision=(revisions[sbn.key] ?: 0)+1;revisions[sbn.key]=revision
         scope.launch {
@@ -52,6 +53,14 @@ class IslandNotificationService : NotificationListenerService() {
             else attachMedia(sbn)
             IslandController.post(result,silent)
         }
+    }
+    /** Ongoing navigation, timer/stopwatch and recorder notifications become live activities. */
+    private fun activityKind(n: Notification, pkg: String): String? {
+        if(n.flags and Notification.FLAG_ONGOING_EVENT == 0) return null
+        if(n.category == "navigation") return "nav"
+        if(!n.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER)) return null
+        val title=n.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
+        return if(Regex("(?i)record|dictaphone|voice memo").containsMatchIn("$pkg $title")) "record" else "timer"
     }
     @Suppress("DEPRECATION")
     private fun token(n: Notification): MediaSession.Token? = n.extras.getParcelable(Notification.EXTRA_MEDIA_SESSION)
@@ -102,7 +111,15 @@ class IslandNotificationService : NotificationListenerService() {
             getSystemService(android.telecom.TelecomManager::class.java).defaultDialerPackage
                 ?.let { packageManager.getApplicationIcon(it).softwareBitmap() }
         }.getOrNull() ?: icon else icon
-        return IslandItem(sbn.key,pkg,app,title,text,callIcon,cover,n.contentIntent,actions,call,incoming,avatar,media,NotificationRules.code("$title $text"),accent,callStart)
+        val base=IslandItem(sbn.key,pkg,app,title,text,callIcon,cover,n.contentIntent,actions,call,incoming,avatar,media,NotificationRules.code("$title $text"),accent,callStart)
+        val kind=if(call || media != null) null else activityKind(n,pkg)
+        if(kind == null) return base
+        val wall=System.currentTimeMillis();val elapsed=SystemClock.elapsedRealtime()
+        val countdown=e.getBoolean("android.chronometerCountDown")
+        val whenMs=n.`when`.takeIf { it > 0 } ?: wall
+        val baseElapsed=if(countdown) elapsed+(whenMs-wall) else elapsed-(wall-whenMs)
+        val colour=when(kind){ "timer"->0xFFFF9F0A.toInt();"record"->0xFFFF3B30.toInt();else->0xFF64D2FF.toInt() }
+        return base.copy(code=null,status=StatusInfo(kind,title,if(kind=="nav") text else "",colour,chrono=kind != "nav" && e.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER),baseElapsed=baseElapsed,countdown=countdown))
     }
     private fun Drawable.softwareBitmap(): Bitmap = toBitmap(128,128,Bitmap.Config.ARGB_8888).copy(Bitmap.Config.ARGB_8888,false)
     private fun dominant(bitmap: Bitmap?): Int {

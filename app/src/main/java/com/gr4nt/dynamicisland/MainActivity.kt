@@ -106,6 +106,11 @@ class MainActivity : ComponentActivity() {
                     GlassButton("Charging",Modifier.weight(1f),onClick={ if(connected)IslandController.preview("status:charging") else localPreview=true })
                     GlassButton("Low battery",Modifier.weight(1f),onClick={ if(connected)IslandController.preview("status:low") else localPreview=true })
                 }
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    GlassButton("Timer",Modifier.weight(1f),onClick={ if(connected)IslandController.preview("status:timer") else localPreview=true })
+                    GlassButton("Recording",Modifier.weight(1f),onClick={ if(connected)IslandController.preview("status:record") else localPreview=true })
+                    GlassButton("Directions",Modifier.weight(1f),onClick={ if(connected)IslandController.preview("status:nav") else localPreview=true })
+                }
             }
         }
         }

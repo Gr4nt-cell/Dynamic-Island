@@ -45,7 +45,7 @@ class IslandAccessibilityService : AccessibilityService() {
         val rect=metrics.windowInsets.displayCutout?.boundingRectTop
         val cameraTop=rect?.let { NotificationRules.cameraTop(it.top,it.bottom,it.width()) } ?: (10*density).toInt()
         return WindowManager.LayoutParams(
-            (metrics.bounds.width()-(l.left+l.right)*density).toInt().coerceAtLeast((120*density).toInt()),
+            (metrics.bounds.width()-(l.left+l.right)*density).toInt().coerceAtLeast((120*density).toInt()).let { w -> if(metrics.bounds.width()>metrics.bounds.height()) w.coerceAtMost((460*density).toInt()) else w },
             WindowManager.LayoutParams.WRAP_CONTENT,WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or

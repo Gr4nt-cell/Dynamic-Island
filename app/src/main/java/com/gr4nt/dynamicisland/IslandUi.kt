@@ -84,6 +84,8 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     if(item == null) { Spacer(Modifier.size(1.dp));return }
     val compact=(item.media != null || item.status != null || (item.call && !item.incoming)) && !state.expanded
     val pillWidth=if(item.status != null)236.dp else if(item.call)144.dp else 108.dp
+    var lastSecondary by remember { mutableStateOf<IslandItem?>(null) }
+    if(state.secondary!=null) lastSecondary=state.secondary
     BoxWithConstraints(Modifier.fillMaxWidth(),contentAlignment=Alignment.TopCenter) {
         val cardWidth=maxWidth
         val shellWidth by animateDpAsState(if(compact)pillWidth else cardWidth,spring(.74f,750f),label="shell width")
@@ -129,6 +131,11 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
                     if(layout.countdown && !state.replying) Countdown(state.generation,layout.seconds)
                 }
             } }
+        }
+        androidx.compose.animation.AnimatedVisibility(compact && state.secondary!=null,Modifier.align(Alignment.TopCenter).offset(x=shellWidth/2+25.dp),
+            enter=androidx.compose.animation.scaleIn(spring(.6f,600f),initialScale=.2f)+androidx.compose.animation.fadeIn(tween(120)),
+            exit=androidx.compose.animation.scaleOut(tween(140),targetScale=.2f)+androidx.compose.animation.fadeOut(tween(120))) {
+            lastSecondary?.let { SideDot(it,Modifier) }
         }
     }
 }
@@ -335,14 +342,28 @@ private fun statusColor(argb: Int) = Color(argb)
         "vibrate" -> Icon(Icons.Rounded.Vibration,"Vibrate",Modifier.size(20.dp).padding(start=2.dp),tint=Color.White)
         "headset" -> Icon(Icons.Rounded.Headphones,"Headphones",Modifier.size(20.dp).padding(start=2.dp),tint=Color.White)
         "hotspot" -> Icon(Icons.Rounded.WifiTethering,"Hotspot",Modifier.size(20.dp).padding(start=2.dp),tint=statusColor(s.color))
+        "timer" -> Icon(Icons.Rounded.Timer,"Timer",Modifier.size(21.dp).padding(start=2.dp),tint=statusColor(s.color))
+        "nav" -> Icon(Icons.Rounded.Navigation,"Directions",Modifier.size(21.dp).padding(start=2.dp),tint=statusColor(s.color))
+        "record" -> {
+            val t=rememberInfiniteTransition(label="rec")
+            Row(Modifier.padding(start=4.dp),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically) {
+                repeat(6) { i -> val h by t.animateFloat(4f+(i%3)*2,16f-(i%2)*4,infiniteRepeatable(tween(300+i*70,easing=LinearEasing),RepeatMode.Reverse),label="rc$i"); Box(Modifier.width(2.5.dp).height(h.dp).clip(CircleShape).background(statusColor(s.color))) }
+            }
+        }
+        "unlock" -> {
+            var open by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) { delay(260);open=true }
+            val pop by animateFloatAsState(if(open)1f else .86f,spring(.45f,500f),label="unlock")
+            Icon(if(open)Icons.Rounded.LockOpen else Icons.Rounded.Lock,"Unlocked",Modifier.size(19.dp).padding(start=2.dp).graphicsLayer { scaleX=pop;scaleY=pop },tint=Color.White)
+        }
         "dnd" -> Icon(Icons.Rounded.Bedtime,"Do Not Disturb",Modifier.size(20.dp).padding(start=2.dp),tint=statusColor(s.color))
         else -> Text(s.label,color=Color.White,fontSize=14.sp,fontWeight=FontWeight.Medium,maxLines=1,modifier=Modifier.padding(start=4.dp))
     }
 }
 @Composable private fun StatusTrailing(s: StatusInfo) {
-    val color=if(s.kind=="ring"||s.kind=="vibrate"||s.kind=="headset") Color.White else statusColor(s.color)
+    val color=if(s.kind=="ring"||s.kind=="vibrate"||s.kind=="headset"||s.kind=="nav") Color.White else statusColor(s.color)
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-        Text(s.value,color=color,fontSize=14.sp,fontWeight=FontWeight.Medium,maxLines=1)
+        if(s.chrono) LiveTime(s,color) else Text(s.value,color=color,fontSize=if(s.kind=="nav")13.sp else 14.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.widthIn(max=110.dp))
         if(s.level>=0) BatteryGlyph(s.level,statusColor(s.color))
     }
 }
@@ -353,12 +374,38 @@ private fun statusColor(argb: Int) = Color(argb)
 }
 @Composable private fun StatusCard(s: StatusInfo) {
     Column(Modifier.fillMaxWidth().padding(horizontal=22.dp,vertical=10.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-            Box(Modifier.weight(1f)) { StatusLeading(s) }
+        if(s.kind=="nav") Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+            Icon(Icons.Rounded.Navigation,"Directions",Modifier.size(30.dp),tint=statusColor(s.color))
+            Column { Text(s.label,color=Color.White,fontSize=17.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis);if(s.value.isNotBlank()) Text(s.value,color=Secondary,fontSize=14.sp,maxLines=1) }
+        } else Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { if(s.kind=="timer"||s.kind=="record") Text(s.label,color=Color.White,fontSize=16.sp,fontWeight=FontWeight.SemiBold) else StatusLeading(s) }
             StatusTrailing(s)
         }
         if(s.action=="battery_saver") Box(Modifier.fillMaxWidth().height(46.dp).iosClickable { IslandController.openBatterySaver() }.clip(CircleShape).background(Color(0xFF2C2C2E)),contentAlignment=Alignment.Center) {
             Text("Battery Saver",color=Color.White,fontSize=16.sp,fontWeight=FontWeight.Medium)
+        }
+    }
+}
+
+@Composable private fun LiveTime(s: StatusInfo, color: Color) {
+    var now by remember { mutableLongStateOf(android.os.SystemClock.elapsedRealtime()) }
+    LaunchedEffect(s.baseElapsed) { while(true) { now=android.os.SystemClock.elapsedRealtime();delay(250) } }
+    val ms=(if(s.countdown) s.baseElapsed-now else now-s.baseElapsed).coerceAtLeast(0)
+    val total=ms/1000
+    val text=if(total>=3600) "%d:%02d:%02d".format(total/3600,total%3600/60,total%60) else "%02d:%02d".format(total/60,total%60)
+    Text(text,color=color,fontSize=15.sp,fontWeight=FontWeight.Medium,maxLines=1)
+}
+/** Small round island beside the main pill, like the iPhone's second live activity. */
+@Composable private fun SideDot(item: IslandItem,modifier: Modifier) {
+    Box(modifier.size(37.dp).iosClickable { IslandController.swap() }.softGlass(CircleShape,overlay=true,black=true),contentAlignment=Alignment.Center) {
+        val kind=item.status?.kind
+        when {
+            item.call -> Icon(Icons.Rounded.Call,"Call",Modifier.size(18.dp),tint=IslandGreen)
+            kind=="timer" -> Icon(Icons.Rounded.Timer,"Timer",Modifier.size(19.dp),tint=Color(0xFFFF9F0A))
+            kind=="record" -> Icon(Icons.Rounded.Mic,"Recording",Modifier.size(19.dp),tint=Color(0xFFFF3B30))
+            kind=="nav" -> Icon(Icons.Rounded.Navigation,"Directions",Modifier.size(19.dp),tint=Color(0xFF64D2FF))
+            item.largeIcon!=null -> Image(item.largeIcon.asImageBitmap(),null,Modifier.size(26.dp).clip(CircleShape),contentScale=ContentScale.Crop)
+            else -> Icon(Icons.Rounded.MusicNote,"Music",Modifier.size(18.dp),tint=LocalAccent.current)
         }
     }
 }

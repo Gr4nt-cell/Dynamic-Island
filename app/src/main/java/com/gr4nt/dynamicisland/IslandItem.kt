@@ -14,7 +14,9 @@ data class MediaInfo(val controller: MediaController?, val duration: Long, val p
     fun elapsed(): Long = (position + if(playing) ((SystemClock.elapsedRealtime()-updatedAt)*speed).toLong() else 0).coerceIn(0,duration.coerceAtLeast(0))
 }
 /** System activity shown like the iPhone's ring/silent, charging, low-battery and accessory pills. */
-data class StatusInfo(val kind: String, val label: String, val value: String = "", val color: Int = 0xFFFFFFFF.toInt(), val level: Int = -1, val action: String? = null)
+data class StatusInfo(val kind: String, val label: String, val value: String = "", val color: Int = 0xFFFFFFFF.toInt(), val level: Int = -1, val action: String? = null,
+    /** Live activities: chronometer base on the elapsed-realtime clock; countdown when [countdown]. */
+    val chrono: Boolean = false, val baseElapsed: Long = 0, val countdown: Boolean = false)
 data class IslandItem(
     val key: String, val pkg: String, val app: String, val title: String, val text: String,
     val appIcon: Bitmap? = null, val largeIcon: Bitmap? = null, val intent: PendingIntent? = null,
