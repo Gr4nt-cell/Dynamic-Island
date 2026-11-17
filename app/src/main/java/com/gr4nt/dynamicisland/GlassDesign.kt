@@ -93,11 +93,11 @@ fun Modifier.iosReveal(delayMillis: Long=0): Modifier = composed {
         IslandText(label,15,SettingsAccent,androidx.compose.ui.text.font.FontWeight.SemiBold,lines=1)
     }
 }
-@Composable fun IosSwitch(checked: Boolean, enabled: Boolean=true, change: (Boolean)->Unit) {
+@Composable fun IosSwitch(checked: Boolean, enabled: Boolean=true, label: String?=null, change: (Boolean)->Unit) {
     val p=LocalGlassPalette.current
     val offset by animateDpAsState(if(checked)22.dp else 2.dp,spring(.82f,600f),label="switch position")
     val colour by animateColorAsState(if(checked)Color(0xFF34C759).copy(alpha=.8f) else if(p.dark)Color(0xFF555A58) else Color(0xFFA8B4AD),tween(180),label="switch tint")
-    Box(Modifier.size(51.dp,31.dp).semantics { role=Role.Switch;toggleableState=if(checked)ToggleableState.On else ToggleableState.Off }
+    Box(Modifier.size(51.dp,31.dp).semantics { role=Role.Switch;if(label!=null)contentDescription=label;toggleableState=if(checked)ToggleableState.On else ToggleableState.Off }
         .iosClickable(enabled,pressedScale=.96f) { change(!checked) }.softGlass(CircleShape,tint=colour),contentAlignment=Alignment.CenterStart) {
         Box(Modifier.offset(x=offset).size(27.dp).clip(CircleShape).background(Brush.verticalGradient(listOf(Color.White,Color(0xFFE9EFEB)))).border(.6.dp,Color.White.copy(alpha=.85f),CircleShape))
     }

@@ -40,7 +40,7 @@ The release is signed with the bundled public development key for personal use, 
 
 ## Design
 
-Editable [Figma design](https://www.figma.com/design/H1w0RWPXiDoIl9XmcXRp7m?node-id=5-858) includes the settings and message/call/code/reply/music layouts. Figma's Collab-seat tool quota stopped final board-height correction and visual validation: the outer board is currently clipped. The Compose implementation follows the supplied visual specification; the incomplete Figma board is not a verified pixel-perfect source.
+The original [Figma draft](https://www.figma.com/design/H1w0RWPXiDoIl9XmcXRp7m?node-id=5-858) includes the initial settings and message/call/code/reply/music layouts; it predates the 1.1 soft-glass update. Figma's Collab-seat tool quota stopped final board-height correction and visual validation: the outer board is currently clipped. The Compose implementation follows the supplied visual specification; the incomplete Figma board is not a verified pixel-perfect source.
 
 Fast Score soft glass: the same compact Pearl Mist artwork in light mode, AMOLED black in dark mode, milky fills, a neutral white rim and a soft static sheen. The coloured island outline and its setting have been removed, including for existing installs. Islands keep an opaque black lens mask; notification art supplies a fake frost without a backdrop halo. Buttons, switches, sliders, dialogs and settings groups share the material. Independent corner controls remain. Composition-scoped animations handle spring opening, content reveal, 400 ms closing, press compression, switch travel and expanding settings. Fixed-width card/pill layers crossfade during shell width animation; AnimatedContent is deliberately avoided.
 

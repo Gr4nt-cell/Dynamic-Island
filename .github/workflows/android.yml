@@ -22,7 +22,7 @@ jobs:
         with:
           gradle-version: '8.13'
       - name: Build and verify
-        run: gradle --no-daemon testReleaseUnitTest lintRelease assembleRelease bundleRelease
+        run: gradle --no-daemon testReleaseUnitTest lintRelease assembleRelease bundleRelease assembleDebugAndroidTest
       - name: Generate wrapper for source distribution
         run: gradle wrapper --gradle-version 8.13
       - name: Package source
@@ -81,3 +81,10 @@ jobs:
             ui-screenshots/
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
+      - name: Publish UI previews
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          zip -r DynamicIsland-UI-previews.zip ui-screenshots
+          gh release upload "build-${GITHUB_RUN_NUMBER}" DynamicIsland-UI-previews.zip

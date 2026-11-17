@@ -20,7 +20,7 @@ class GlassUiTest {
     @get:Rule val compose=createComposeRule()
     private val base=IslandItem("preview","preview","Messages","Ama","See you in a few minutes. I’m bringing the camera.")
     private fun capture(name: String) {
-        val image=compose.onRoot().captureToImage().asAndroidBitmap()
+        val image=compose.onAllNodes(isRoot()).onLast().captureToImage().asAndroidBitmap()
         val folder=InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir("screenshots")!!
         folder.mkdirs()
         File(folder,"$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) }

@@ -163,7 +163,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 @Composable private fun SettingSwitch(title: String, checked: Boolean, enabled: Boolean=true, change: (Boolean)->Unit) {
-    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) { IslandText(title,14,modifier=Modifier.weight(1f));IosSwitch(checked,enabled,change) }
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) { IslandText(title,14,modifier=Modifier.weight(1f));IosSwitch(checked,enabled,label=title,change=change) }
 }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun SettingSlider(title: String, key: String, value: Float, range: ClosedFloatingPointRange<Float>, unit: String) {
@@ -184,7 +184,7 @@ class MainActivity : ComponentActivity() {
         Column(Modifier.heightIn(max=460.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
             choices.forEach { (pkg,name)->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                    IosSwitch(pkg in selected) { on->save(if(on) selected+pkg else selected-pkg) }
+                    IosSwitch(pkg in selected,label=name) { on->save(if(on) selected+pkg else selected-pkg) }
                     IslandText(name,15,modifier=Modifier.weight(1f))
                 }
             }
