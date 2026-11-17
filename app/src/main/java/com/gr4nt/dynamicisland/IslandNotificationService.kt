@@ -94,7 +94,7 @@ class IslandNotificationService : NotificationListenerService() {
         val source=if(media != null) cover else icon
         val accent=dominant(source)
         val callType=e.getInt("android.callType",0)
-        val callText="$text ${e.getCharSequence(Notification.EXTRA_SUB_TEXT).orEmpty()}"
+        val callText="$text ${e.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString().orEmpty()}"
         val incoming=call && CallTiming.incoming(callType,actions.any { it.kind=="accept" },callText)
         val connected=call && CallTiming.connected(incoming,e.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER),callText)
         val callStart=if(connected) NotificationRules.callStart(n.`when`,e.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER),incoming,System.currentTimeMillis(),SystemClock.elapsedRealtime()) else null
