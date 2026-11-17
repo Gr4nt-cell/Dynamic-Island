@@ -1,3 +1,7 @@
+## Version 1.5
+
+Large cards are another 5% shorter: 366 × 191.52 dp. Other shell sizes are unchanged. Vivid artwork-derived accents now also style brief-message details, app headers, verification-code gradients, reply/read actions, copy/archive/delete chips, reply cursors, and call status text. Small status cards use semantic green/red/amber/cyan accents and gradient battery indicators. All island backgrounds remain opaque black; call timing and motion are unchanged. New installs default to 10 dp left/right margins, a 16 dp camera gap, 100% size, six-second display time, countdown off and all apps on. Existing saved calibration is preserved.
+
 ## Version 1.4
 
 Large cards are 10% shorter (366 × 201.6 dp); the other three sizes are unchanged. Expanded call artwork and controls are vertically centred with a clear lane for the camera. The `island-colour` branch's multicolor waveform palette is restored for music and call pills, and expanded media uses album art, a waveform, colored timeline and plain transport/output controls.
@@ -10,7 +14,7 @@ All islands use opaque black backgrounds, white titles, gray supporting text, or
 
 | Tier | Default size (dp) | Content |
 | --- | --- | --- |
-| Large | 366 × 201.6 | Expanded media, long messages, actionable notifications, codes and replies |
+| Large | 366 × 191.52 | Expanded media, long messages, actionable notifications, codes and replies |
 | Medium | 366 × 96 | Expanded calls and brief notifications |
 | Small expanded | 250 × 48 | Charging, low battery, ringer and wired headphones |
 | Pill | 148 × 37 | Media artwork/waveform or call duration/dialer |

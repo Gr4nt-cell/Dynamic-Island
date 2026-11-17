@@ -169,20 +169,43 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
         Art(item.appIcon,32.dp,fallback=Icons.Rounded.ChatBubble)
         Column(Modifier.weight(1f)) {
             IslandText(item.title,16,weight=FontWeight.SemiBold,lines=1)
-            IslandText(item.text,13,Secondary,lines=1)
+            IslandText(item.text,13,LocalIslandAccent.current,lines=1)
         }
     }
 }
 @Composable private fun StatusCard(item: IslandItem) {
-    val color=when(item.event) { IslandEvent.LOW_BATTERY -> IslandRed;IslandEvent.CHARGING -> IslandGreen;else -> Color(0xFFFF9F0A) }
+    val color=when(item.event) {
+        IslandEvent.LOW_BATTERY -> IslandRed
+        IslandEvent.CHARGING -> IslandGreen
+        IslandEvent.HEADPHONES -> Color(0xFF64D2FF)
+        IslandEvent.RINGER -> if(item.title=="Silent") Color(0xFFFF2D55) else Color(0xFFFF9F0A)
+        else -> LocalIslandAccent.current
+    }
     Row(Modifier.fillMaxSize().padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically) {
         IslandText(item.title,12,weight=FontWeight.SemiBold,lines=1,modifier=Modifier.weight(1f))
         Spacer(Modifier.width(36.dp))
         Row(Modifier.weight(1f),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
             IslandText(item.text,12,color,lines=1)
             Spacer(Modifier.width(5.dp))
-            Icon(when(item.event) { IslandEvent.CHARGING -> Icons.Rounded.BatteryChargingFull;IslandEvent.LOW_BATTERY -> Icons.Rounded.BatteryAlert;IslandEvent.HEADPHONES -> Icons.Rounded.Headphones;else -> Icons.Rounded.Notifications },null,Modifier.size(18.dp),tint=color)
+            if(item.event==IslandEvent.CHARGING || item.event==IslandEvent.LOW_BATTERY) {
+                val level=item.text.filter { it.isDigit() }.toIntOrNull() ?: 0
+                BatteryIndicator(level,color,item.event==IslandEvent.CHARGING)
+            } else Icon(if(item.event==IslandEvent.HEADPHONES) Icons.Rounded.Headphones else if(item.title=="Silent") Icons.Rounded.NotificationsOff else Icons.Rounded.Notifications,null,Modifier.size(18.dp),tint=color)
         }
+    }
+}
+@Composable private fun BatteryIndicator(level: Int, accent: Color, charging: Boolean) {
+    Box(Modifier.size(25.dp,14.dp),contentAlignment=Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val w=size.width-3.dp.toPx();val pad=2.dp.toPx()
+            val radius=androidx.compose.ui.geometry.CornerRadius(3.dp.toPx())
+            drawRoundRect(accent.copy(alpha=.28f),size=androidx.compose.ui.geometry.Size(w,size.height),cornerRadius=radius)
+            val fill=(w-pad*2)*level.coerceIn(0,100)/100f
+            if(fill>0) drawRoundRect(Brush.horizontalGradient(listOf(accent,if(charging) Color(0xFF64FFD2) else Color(0xFFFF9F0A))),
+                topLeft=androidx.compose.ui.geometry.Offset(pad,pad),size=androidx.compose.ui.geometry.Size(fill,size.height-pad*2),cornerRadius=androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx()))
+            drawRoundRect(accent,topLeft=androidx.compose.ui.geometry.Offset(w+1.dp.toPx(),size.height*.3f),size=androidx.compose.ui.geometry.Size(2.dp.toPx(),size.height*.4f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()))
+        }
+        if(charging) Icon(Icons.Rounded.Bolt,null,Modifier.size(12.dp),tint=Color.White)
     }
 }
 @Composable private fun Countdown(generation: Long, seconds: Float) {
@@ -200,12 +223,12 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
 @Composable private fun MessageCard(item: IslandItem, replying: Boolean, modifier: Modifier) {
     Column(modifier,verticalArrangement=Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-            Art(item.appIcon,16.dp,fallback=Icons.Rounded.ChatBubble);IslandText(item.app,12,Color(item.accent),lines=1,modifier=Modifier.weight(1f));IslandText("now",12,Secondary)
+            Art(item.appIcon,16.dp,fallback=Icons.Rounded.ChatBubble);IslandText(item.app,12,LocalIslandAccent.current,lines=1,modifier=Modifier.weight(1f));IslandText("now",12,Secondary)
         }
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
                 IslandText(item.title,17,weight=FontWeight.SemiBold,lines=1)
-                if(item.code!=null) Text(item.code,color=Color(0xFF66D4FF),fontSize=28.sp,fontWeight=FontWeight.Bold,letterSpacing=3.sp)
+                if(item.code!=null) Text(item.code,style=TextStyle(brush=Brush.linearGradient(listOf(LocalIslandAccent.current,Color(0xFF64D2FF)))),fontSize=28.sp,fontWeight=FontWeight.Bold,letterSpacing=3.sp)
                 else IslandText(item.text,14,Secondary,lines=if(replying)3 else 6)
             }
             if(item.largeIcon!=null && item.code==null) Image(item.largeIcon.asImageBitmap(),null,Modifier.size(44.dp).clip(CircleShape),contentScale=ContentScale.Crop)
@@ -216,7 +239,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             item.actions.forEach { action ->
                 val kind=if(action.reply) "reply" else action.kind
                 val vector=when(kind) { "reply"->ReplyVector;"read"->ReadVector;"delete"->Icons.Rounded.DeleteOutline;"archive"->Icons.Rounded.Archive;else->null }
-                if(kind=="reply" || kind=="read") RoundButton(action.title.ifBlank { kind },vector ?: ReplyVector,Color.Transparent,38.dp) { IslandController.action(action) }
+                if(kind=="reply" || kind=="read") RoundButton(action.title.ifBlank { kind },vector ?: ReplyVector,Color.Transparent,38.dp,foreground=if(kind=="read") Color(0xFF64D2FF) else LocalIslandAccent.current) { IslandController.action(action) }
                 else ActionPill(action.title,vector,action.icon) { IslandController.action(action) }
             }
         }
@@ -227,12 +250,12 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     val requester=remember { FocusRequester() };val keyboard=LocalSoftwareKeyboardController.current
     LaunchedEffect(item.key) { delay(150);requester.requestFocus();keyboard?.show() }
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-        BasicTextField(reply,{reply=it.take(4000)},Modifier.weight(1f).softGlass(RoundedCornerShape(18.dp)).padding(12.dp).focusRequester(requester),
-            textStyle=TextStyle(color=LocalGlassPalette.current.text,fontSize=15.sp),cursorBrush=SolidColor(SettingsAccent),maxLines=4,
+        BasicTextField(reply,{reply=it.take(4000)},Modifier.weight(1f).softGlass(RoundedCornerShape(18.dp)).border(.8.dp,LocalIslandAccent.current.copy(alpha=.5f),RoundedCornerShape(18.dp)).padding(12.dp).focusRequester(requester),
+            textStyle=TextStyle(color=LocalGlassPalette.current.text,fontSize=15.sp),cursorBrush=SolidColor(LocalIslandAccent.current),maxLines=4,
             keyboardOptions=KeyboardOptions(imeAction=ImeAction.Send),keyboardActions=KeyboardActions(onSend={IslandController.sendReply(reply)}),
             decorationBox={ field -> if(reply.isEmpty()) IslandText("Reply…",14,Secondary);field() })
-        RoundButton("Send reply",Icons.AutoMirrored.Rounded.Send,IslandGreen,38.dp) { IslandController.sendReply(reply) }
-        RoundButton("Cancel reply",Icons.Rounded.Close,Color.Transparent,32.dp) { IslandController.cancelReply() }
+        RoundButton("Send reply",Icons.AutoMirrored.Rounded.Send,LocalIslandAccent.current,38.dp) { IslandController.sendReply(reply) }
+        RoundButton("Cancel reply",Icons.Rounded.Close,Color.Transparent,32.dp,foreground=IslandRed) { IslandController.cancelReply() }
     }
 }
 @Composable private fun CallCard(item: IslandItem) {
@@ -241,7 +264,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     // Both side groups are centred in the shell, with an empty lane for the lens.
     Row(Modifier.fillMaxSize().padding(horizontal=20.dp),verticalAlignment=Alignment.CenterVertically) {
         Row(Modifier.weight(1f),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.size(38.dp).testTag("call-avatar").clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFF5E5CE6),Color(0xFFBF5AF2)))),contentAlignment=Alignment.Center) {
+            Box(Modifier.size(38.dp).testTag("call-avatar").clip(CircleShape).background(Brush.linearGradient(listOf(LocalIslandAccent.current,Color(0xFF64D2FF)))),contentAlignment=Alignment.Center) {
                 if(item.avatar!=null) Image(item.avatar.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
                 else {
                     val initial=item.title.trim().firstOrNull()?.takeIf { it.isLetter() }
@@ -250,7 +273,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             }
             Column(Modifier.weight(1f)) {
                 IslandText(item.title,16,weight=FontWeight.SemiBold,lines=1)
-                IslandText(if(item.incoming) "Incoming Call" else if(item.callStartedAtElapsed==null) "Calling…" else "Ongoing Call",12,Secondary,lines=1)
+                IslandText(if(item.incoming) "Incoming Call" else if(item.callStartedAtElapsed==null) "Calling…" else "Ongoing Call",12,if(item.incoming || item.callStartedAtElapsed!=null) IslandGreen else Color(0xFFFF9F0A),lines=1)
             }
         }
         Spacer(Modifier.width(36.dp))
@@ -285,7 +308,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     Column(modifier,verticalArrangement=Arrangement.SpaceBetween) {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Art(item.largeIcon,50.dp)
-            Column(Modifier.weight(1f)) { IslandText(item.title,16,weight=FontWeight.SemiBold,lines=1);IslandText(item.text,13,Secondary,lines=1) }
+            Column(Modifier.weight(1f)) { IslandText(item.title,16,weight=FontWeight.SemiBold,lines=1);IslandText(item.text,13,LocalIslandAccent.current,lines=1) }
             ColorWaveform(media.playing,bars=5)
         }
         Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
@@ -338,18 +361,25 @@ private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);ret
         else Icon(if(a.title.contains("pause",true))Icons.Rounded.Pause else if(a.title.contains("next",true))Icons.Rounded.SkipNext else if(a.title.contains("prev",true))Icons.Rounded.SkipPrevious else Icons.Rounded.PlayArrow,a.title,tint=LocalGlassPalette.current.text)
     }
 }
-@Composable fun RoundButton(label: String, vector: ImageVector, color: Color, size: Dp=42.dp, flat: Boolean=false, click: ()->Unit) {
+@Composable fun RoundButton(label: String, vector: ImageVector, color: Color, size: Dp=42.dp, flat: Boolean=false, foreground: Color?=null, click: ()->Unit) {
     val tinted=color!=Color.Transparent
     Box(Modifier.size(size).iosClickable(pressedScale=.88f,onClick=click).then(if(flat) Modifier else Modifier.softGlass(CircleShape,tint=if(tinted)color else null)),contentAlignment=Alignment.Center) {
-        Icon(vector,label,Modifier.size(size*.52f),tint=if(tinted)Color.White else LocalGlassPalette.current.text)
+        Icon(vector,label,Modifier.size(size*.52f),tint=foreground ?: if(tinted)Color.White else LocalIslandAccent.current)
     }
 }
 @Composable fun ActionPill(label: String, vector: ImageVector?=null, icon: AndroidIcon?=null, click: ()->Unit) {
     val b=iconBitmap(icon)
-    Row(Modifier.height(38.dp).iosClickable(onClick=click).softGlass(CircleShape).padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(7.dp)) {
-        if(vector!=null) Icon(vector,null,Modifier.size(18.dp),tint=LocalGlassPalette.current.text)
-        else if(b!=null) Image(b.asImageBitmap(),null,Modifier.size(18.dp),colorFilter=ColorFilter.tint(LocalGlassPalette.current.text))
-        IslandText(label,14,weight=FontWeight.SemiBold,lines=1)
+    val accent=when {
+        label.contains("delete",true) -> IslandRed
+        label.contains("archive",true) -> Color(0xFFFF9F0A)
+        else -> LocalIslandAccent.current
+    }
+    Row(Modifier.height(38.dp).iosClickable(onClick=click).clip(CircleShape)
+        .background(Brush.horizontalGradient(listOf(accent.copy(alpha=.2f),Color(0xFF64D2FF).copy(alpha=.12f))))
+        .padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+        if(vector!=null) Icon(vector,null,Modifier.size(18.dp),tint=accent)
+        else if(b!=null) Image(b.asImageBitmap(),null,Modifier.size(18.dp),colorFilter=ColorFilter.tint(accent))
+        IslandText(label,14,accent,weight=FontWeight.SemiBold,lines=1)
     }
 }
 

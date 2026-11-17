@@ -170,7 +170,7 @@ class GlassUiTest {
     }
     @Test fun largeCardsUseIdenticalDimensionsAndOpaqueBlackInLightMode() {
         scene("large-notification-black",false,base.copy(text="A long message with enough detail to need the large card. ".repeat(3)))
-        compose.onNodeWithTag("island-shell").assertWidthIsEqualTo(366.dp).assertHeightIsEqualTo(201.6.dp)
+        compose.onNodeWithTag("island-shell").assertWidthIsEqualTo(366.dp).assertHeightIsEqualTo(191.52.dp)
         val bitmap=compose.onNodeWithTag("island-shell").captureToImage().asAndroidBitmap()
         val pixel=bitmap.getPixel(bitmap.width/2,bitmap.height-12)
         assertEquals(android.graphics.Color.BLACK,pixel)

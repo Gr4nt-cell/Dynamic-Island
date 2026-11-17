@@ -12,7 +12,7 @@ class IslandApp : Application() {
     override fun onCreate() { super.onCreate(); IslandController.init(this) }
 }
 data class IslandLayout(
-    val left: Float = 10f, val right: Float = 10f, val gap: Float = 2f,
+    val left: Float = 10f, val right: Float = 10f, val gap: Float = 16f,
     val cameraSpace: Float = 6f, val bottomSpace: Float = 8f, val size: Float = 100f,
     val topLeft: Float = 44f, val topRight: Float = 44f,
     val bottomLeft: Float = 44f, val bottomRight: Float = 44f,
@@ -24,7 +24,7 @@ class LayoutStore(private val context: Context, scope: CoroutineScope) {
     val flow = context.preferences.data.catch { emit(emptyPreferences()) }.map { p ->
         fun f(k: String, d: Float) = p[floatPreferencesKey(k)] ?: d
         fun b(k: String, d: Boolean) = p[booleanPreferencesKey(k)] ?: d
-        IslandLayout(f("left",10f), f("right",10f), f("gap",2f), f("cameraSpace",6f), f("bottomSpace",8f), f("size",100f),
+        IslandLayout(f("left",10f), f("right",10f), f("gap",16f), f("cameraSpace",6f), f("bottomSpace",8f), f("size",100f),
             f("topLeft",44f),f("topRight",44f),f("bottomLeft",44f),f("bottomRight",44f),f("seconds",6f),
             b("countdown",false),b("allApps",true),p[stringSetPreferencesKey("allowList")] ?: emptySet(),b("rootRecovery",false))
     }.stateIn(scope, SharingStarted.Eagerly, IslandLayout())
