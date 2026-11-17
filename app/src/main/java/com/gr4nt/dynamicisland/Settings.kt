@@ -9,7 +9,15 @@ import kotlinx.coroutines.flow.*
 
 val Context.preferences by preferencesDataStore("island_layout")
 class IslandApp : Application() {
-    override fun onCreate() { super.onCreate(); IslandController.init(this) }
+    override fun onCreate() {
+        super.onCreate(); IslandController.init(this)
+        // Android disables an accessibility service that crashes, so keep the last crash for diagnosis.
+        val previous=Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t,e ->
+            runCatching { java.io.File(filesDir,"last_crash.txt").writeText(android.util.Log.getStackTraceString(e)) }
+            previous?.uncaughtException(t,e)
+        }
+    }
 }
 data class IslandLayout(
     val left: Float = 10f, val right: Float = 10f, val gap: Float = 2f,

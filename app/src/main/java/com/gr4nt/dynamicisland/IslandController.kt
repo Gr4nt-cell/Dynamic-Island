@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.*
 
 data class IslandState(val item: IslandItem? = null, val expanded: Boolean = true, val replying: Boolean = false, val generation: Long = 0)
 object IslandController {
-    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _,e -> android.util.Log.e("DynamicIsland","coroutine failed",e) })
     lateinit var context: Context
     lateinit var settings: LayoutStore
     lateinit var root: RootExtras

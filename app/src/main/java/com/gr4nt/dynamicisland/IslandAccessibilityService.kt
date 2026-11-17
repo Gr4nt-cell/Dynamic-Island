@@ -24,7 +24,7 @@ class OverlayOwners : LifecycleOwner, SavedStateRegistryOwner, ViewModelStoreOwn
     fun destroy() { registry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE);registry.handleLifecycleEvent(Lifecycle.Event.ON_STOP);registry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY);viewModelStore.clear() }
 }
 class IslandAccessibilityService : AccessibilityService() {
-    private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
+    private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate+CoroutineExceptionHandler { _,e -> android.util.Log.e("DynamicIsland","coroutine failed",e) })
     private lateinit var wm: WindowManager
     private var view: ComposeView?=null
     private var owners: OverlayOwners?=null
@@ -34,8 +34,8 @@ class IslandAccessibilityService : AccessibilityService() {
         wm=getSystemService(WindowManager::class.java)
         IslandController.connected.value=true
         IslandController.setFocusable={ focus -> focused=focus;updateWindow() }
-        scope.launch { IslandController.settings.flow.collect { rebuild() } }
-        scope.launch { IslandController.state.map { Triple(it.item?.key, it.expanded, it.item != null) }.distinctUntilChanged().collect { updateWindow() } }
+        scope.launch { IslandController.settings.flow.collect { runCatching { rebuild() } } }
+        scope.launch { IslandController.state.map { Triple(it.item?.key, it.expanded, it.item != null) }.distinctUntilChanged().collect { runCatching { updateWindow() } } }
     }
     private fun makeParams(): WindowManager.LayoutParams {
         val l=IslandController.settings.flow.value
@@ -83,7 +83,7 @@ class IslandAccessibilityService : AccessibilityService() {
         view?.let { if(it.isAttachedToWindow) wm.removeViewImmediate(it);it.disposeComposition() };view=null
         owners?.destroy();owners=null
     }
-    override fun onConfigurationChanged(newConfig: Configuration) { super.onConfigurationChanged(newConfig);rebuild() }
+    override fun onConfigurationChanged(newConfig: Configuration) { super.onConfigurationChanged(newConfig);runCatching { rebuild() } }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
     override fun onInterrupt() { IslandController.cancelReply() }
     override fun onUnbind(intent: android.content.Intent?): Boolean { cleanup();return super.onUnbind(intent) }

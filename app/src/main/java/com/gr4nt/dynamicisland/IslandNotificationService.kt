@@ -11,7 +11,7 @@ import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.*
 
 class IslandNotificationService : NotificationListenerService() {
-    private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
+    private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate+CoroutineExceptionHandler { _,e -> android.util.Log.e("DynamicIsland","coroutine failed",e) })
     private val controllers=mutableMapOf<String,Pair<MediaController,MediaController.Callback>>()
     private val notifications=mutableMapOf<String,StatusBarNotification>()
     private val revisions=mutableMapOf<String,Long>()
@@ -20,8 +20,12 @@ class IslandNotificationService : NotificationListenerService() {
         // Restore persistent call/media state without replaying all old messages.
         activeNotifications?.forEach { receive(it,true) }
     }
-    override fun onListenerDisconnected() { IslandController.listenerConnected.value=false;clear() }
-    override fun onNotificationPosted(sbn: StatusBarNotification) { receive(sbn,false) }
+    override fun onListenerDisconnected() {
+        IslandController.listenerConnected.value=false;clear()
+        // Ask Android to bind us again instead of waiting for the user to re-enable access.
+        runCatching { requestRebind(android.content.ComponentName(this,IslandNotificationService::class.java)) }
+    }
+    override fun onNotificationPosted(sbn: StatusBarNotification) { runCatching { receive(sbn,false) }.onFailure { android.util.Log.e("DynamicIsland","notification failed",it) } }
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         notifications.remove(sbn.key);revisions.remove(sbn.key)
         controllers.remove(sbn.key)?.let { it.first.unregisterCallback(it.second) }

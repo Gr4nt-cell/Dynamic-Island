@@ -77,8 +77,8 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     val reveal=remember { Animatable(0f) }
     val scope=rememberCoroutineScope()
     LaunchedEffect(state.item?.key) {
-        if(state.item != null) { retained=state.item;reveal.snapTo(0f);launch { reveal.animateTo(1f,tween(280,easing=IosEase)) };opening.animateTo(1f,spring(.58f,330f)) }
-        else { opening.animateTo(0f,tween(400,easing=CubicBezierEasing(.4f,0f,.2f,1f)));retained=null }
+        if(state.item != null) { retained=state.item;reveal.snapTo(0f);launch { reveal.animateTo(1f,tween(160,easing=IosEase)) };opening.animateTo(1f,spring(.7f,800f)) }
+        else { opening.animateTo(0f,tween(200,easing=CubicBezierEasing(.4f,0f,.2f,1f)));retained=null }
     }
     val item=state.item ?: retained
     if(item == null) { Spacer(Modifier.size(1.dp));return }
@@ -86,7 +86,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     val pillWidth=if(item.call)144.dp else 108.dp
     BoxWithConstraints(Modifier.fillMaxWidth(),contentAlignment=Alignment.TopCenter) {
         val cardWidth=maxWidth
-        val shellWidth by animateDpAsState(if(compact)pillWidth else cardWidth,spring(.62f,340f),label="shell width")
+        val shellWidth by animateDpAsState(if(compact)pillWidth else cardWidth,spring(.74f,750f),label="shell width")
         val widthProgress=if(cardWidth>pillWidth) ((shellWidth-pillWidth)/(cardWidth-pillWidth)).coerceIn(0f,1f) else 1f
         val corners=RoundedCornerShape(layout.topLeft.dp,layout.topRight.dp,layout.bottomRight.dp,layout.bottomLeft.dp)
         val contentAlpha=minOf(((opening.value-.4f)/.6f).coerceIn(0f,1f),reveal.value)
@@ -97,9 +97,9 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             alpha=(opening.value*4).coerceIn(0f,1f)
             translationY=drag.value-6.dp.toPx()*(1-opening.value)
         }.softGlass(corners,overlay=true,black=true)
-            .animateContentSize(spring(.66f,360f))
+            .animateContentSize(spring(.76f,750f))
             .draggable(rememberDraggableState { delta -> scope.launch { drag.snapTo((drag.value+delta).coerceAtMost(0f)) } },Orientation.Vertical,
-                onDragStopped={ if(drag.value < -40f) { IslandController.dismiss();drag.snapTo(0f) } else drag.animateTo(0f,spring(.7f,500f)) })
+                onDragStopped={ if(drag.value < -40f) { IslandController.dismiss();drag.snapTo(0f) } else drag.animateTo(0f,spring(.75f,800f)) })
             .clickable(enabled=!state.replying) { IslandController.tap() }
         ) {
             // Fake frost uses notification art, never a rectangular live backdrop blur.
