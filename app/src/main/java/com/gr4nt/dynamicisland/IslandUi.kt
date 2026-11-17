@@ -92,7 +92,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             }
             LensMask(Modifier.matchParentSize(),layout,compact)
             Box(Modifier.graphicsLayer { alpha=contentAlpha;translationY=10.dp.toPx()*(1-contentAlpha);scaleX=.92f+.08f*contentAlpha;scaleY=scaleX }) {
-                if(item.media!=null) {
+                if(item.media!=null && !item.call) {
                     // Each state measures at its final width, even while the shell is narrow.
                     Box(contentAlignment=Alignment.TopCenter) {
                         if(widthProgress < .99f) MusicPill(item,Modifier.requiredWidth(108.dp).alpha(1-widthProgress))

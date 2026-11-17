@@ -125,7 +125,7 @@ class MainActivity : ComponentActivity() {
             IslandText("Disable the system music island for each music app in Settings → Notifications → Hyper Island → App permissions. This app cannot remove it.",13,Secondary,lines=5)
             IslandText("Without root, native heads-up notifications can still appear. Android may hide sensitive notification text. Notification actions and camera alignment depend on your device and apps.",12,Secondary,lines=5)
         }
-        IslandText("Dynamic Island 1.1 · Android 11+\nDesigned for centre punch-hole cameras.",12,Secondary,lines=2)
+        IslandText("Dynamic Island 1.2 · Android 11+\nDesigned for centre punch-hole cameras.",12,Secondary,lines=2)
         Spacer(Modifier.height(20.dp))
     }
     }

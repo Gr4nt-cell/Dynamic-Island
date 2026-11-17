@@ -30,7 +30,7 @@ object IslandController {
         if (!layout.allApps && item.pkg !in layout.allowList) return
         val now = SystemClock.elapsedRealtime()
         if(gate.blocked(item.key,item.pkg,now)) return
-        if (item.media != null) {
+        if (item.media != null && !item.call) {
             val previous = media
             if(item.media.playing && (previous?.key != item.key || previous.media?.playing != true)) hiddenMedia.remove(item.key)
             media = item
@@ -42,20 +42,31 @@ object IslandController {
         }
         if(item.call) {
             val previous=state.value.item
-            val known=calls[item.key]?.takeIf { !it.incoming }
-                ?: calls.values.lastOrNull { it.pkg==item.pkg && !it.incoming }
-            val callItem=if(item.incoming) item else item.copy(callStartedAtElapsed=
+            val existing=calls[item.key]
+            val known=existing?.takeIf { !it.incoming }
+                ?: if(existing?.incoming==true) null else calls.values.lastOrNull {
+                    it.pkg==item.pkg && it.title==item.title && !it.incoming
+                }
+            val callItem=if(item.incoming) item.copy(media=null) else item.copy(media=null,callStartedAtElapsed=
                 known?.callStartedAtElapsed ?: item.callStartedAtElapsed ?: now)
             // Some dialers replace the incoming notification with a new ongoing key.
-            if(!item.incoming) calls.entries.removeAll { it.value.pkg==item.pkg && it.value.incoming }
+            if(!item.incoming && (known==null || previous?.key==item.key)) calls.entries.removeAll { it.value.pkg==item.pkg && it.value.incoming }
             calls[item.key]=callItem
-            if(previous?.key==item.key && previous.incoming==item.incoming) state.value=state.value.copy(item=callItem)
-            else display(callItem,item.incoming)
+            val sameVisibleCall=previous?.call==true && previous.pkg==item.pkg &&
+                (previous.key==item.key || (!item.incoming && (!previous.incoming || known==null)))
+            when {
+                sameVisibleCall && previous?.incoming==item.incoming -> state.value=state.value.copy(item=callItem)
+                sameVisibleCall -> display(callItem,item.incoming)
+                item.incoming -> display(callItem,true)
+                previous==null || previous.media!=null -> display(callItem,false)
+                // An ongoing-call refresh must not replace a message or steal reply focus.
+                else -> Unit
+            }
             return
         }
         if(silent) return
         // Keep the focused reply intact when unrelated notifications arrive.
-        if(state.value.replying || state.value.item?.call == true) return
+        if(state.value.replying || state.value.item?.let { it.call && it.incoming }==true) return
         if(gate.duplicate(item.pkg,item.title,item.text,now)) return
         display(item,true)
     }
@@ -78,7 +89,7 @@ object IslandController {
     }
     private fun fallback() {
         timer?.cancel();setFocusable(false)
-        val c=calls.values.lastOrNull()
+        val c=calls.values.lastOrNull { it.incoming } ?: calls.values.lastOrNull()
         val m=media?.takeIf { it.media?.playing == true && it.key !in hiddenMedia }
         val item=c ?: m
         state.value=IslandState(item,item?.call == true && item.incoming,false,state.value.generation+1)
@@ -116,7 +127,7 @@ object IslandController {
             gate.undoReply(item.key,item.pkg);toast("Reply action is no longer available")
         }
     }
-    fun action(action: IslandAction) { if(action.reply) reply() else { sendIntent { action.intent.send() }; if(state.value.item?.media == null) collapse() } }
+    fun action(action: IslandAction) { if(action.reply) reply() else { sendIntent { action.intent.send() }; if(state.value.item?.media == null || state.value.item?.call==true) collapse() } }
     private fun sendIntent(block: ()->Unit) { runCatching(block).onFailure { toast("This notification action is no longer available") } }
     fun copyCode() { val code=state.value.item?.code ?: return;(context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Verification code",code));toast("Code copied");collapse() }
     fun toast(text: String) { Toast.makeText(context,text,Toast.LENGTH_SHORT).show() }

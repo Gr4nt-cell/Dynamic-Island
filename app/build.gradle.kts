@@ -10,8 +10,8 @@ android {
         applicationId = "com.gr4nt.dynamicisland"
         minSdk = 30
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += "arm64-v8a" }
     }
