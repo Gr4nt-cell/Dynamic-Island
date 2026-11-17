@@ -142,7 +142,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
 }
 @Composable private fun BriefCard(item: IslandItem) {
     Row(Modifier.fillMaxWidth().padding(horizontal=20.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-        Art(item.appIcon,32.dp)
+        Art(item.appIcon,32.dp,fallback=Icons.Rounded.ChatBubble)
         Column(Modifier.weight(1f)) {
             IslandText(item.title,16,weight=FontWeight.SemiBold,lines=1)
             IslandText(item.text,13,Secondary,lines=1)
@@ -169,20 +169,20 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
 @Composable fun IslandText(text: String, size: Int=14, color: Color=LocalGlassPalette.current.text, weight: FontWeight=FontWeight.Medium, lines: Int=2, modifier: Modifier=Modifier) {
     Text(text,modifier,color=color,fontSize=size.sp,fontWeight=weight,letterSpacing=(-.3).sp,maxLines=lines,overflow=TextOverflow.Ellipsis,lineHeight=(size+4).sp)
 }
-@Composable private fun Art(bitmap: Bitmap?, size: Dp, modifier: Modifier=Modifier) {
+@Composable private fun Art(bitmap: Bitmap?, size: Dp, modifier: Modifier=Modifier, fallback: ImageVector=Icons.Rounded.MusicNote) {
     if(bitmap!=null) Image(bitmap.asImageBitmap(),null,modifier.size(size).clip(RoundedCornerShape(size/4)),contentScale=ContentScale.Crop)
-    else Box(modifier.size(size).clip(RoundedCornerShape(size/4)).background(Brush.linearGradient(listOf(Color(0xFFB354FF),Color(0xFF397AFF)))),contentAlignment=Alignment.Center) { Icon(Icons.Rounded.MusicNote,null,Modifier.size(size*.6f),tint=Color.White) }
+    else Box(modifier.size(size).clip(RoundedCornerShape(size/4)).background(Brush.linearGradient(listOf(Color(0xFFB354FF),Color(0xFF397AFF)))),contentAlignment=Alignment.Center) { Icon(fallback,null,Modifier.size(size*.6f),tint=Color.White) }
 }
 @Composable private fun MessageCard(item: IslandItem, replying: Boolean, modifier: Modifier) {
     Column(modifier,verticalArrangement=Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-            Art(item.appIcon,16.dp);IslandText(item.app,12,Color(item.accent),lines=1,modifier=Modifier.weight(1f));IslandText("now",12,Secondary)
+            Art(item.appIcon,16.dp,fallback=Icons.Rounded.ChatBubble);IslandText(item.app,12,Color(item.accent),lines=1,modifier=Modifier.weight(1f));IslandText("now",12,Secondary)
         }
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
                 IslandText(item.title,17,weight=FontWeight.SemiBold,lines=1)
                 if(item.code!=null) Text(item.code,color=Color(0xFF66D4FF),fontSize=28.sp,fontWeight=FontWeight.Bold,letterSpacing=3.sp)
-                else IslandText(item.text,14,Secondary)
+                else IslandText(item.text,14,Secondary,lines=if(replying)3 else 6)
             }
             if(item.largeIcon!=null && item.code==null) Image(item.largeIcon.asImageBitmap(),null,Modifier.size(44.dp).clip(CircleShape),contentScale=ContentScale.Crop)
         }
@@ -247,7 +247,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     val media=item.media ?: return
     var position by remember(item.key) { mutableLongStateOf(media.elapsed()) }
     LaunchedEffect(media) { while(true) { position=media.elapsed();delay(1000) } }
-    Column(modifier,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    Column(modifier,verticalArrangement=Arrangement.SpaceBetween) {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Art(item.largeIcon,48.dp)
             Column(Modifier.weight(1f)) { IslandText(item.title,17,weight=FontWeight.SemiBold,lines=1);IslandText(item.text,14,Secondary,lines=1) }
@@ -264,9 +264,9 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             if(controls.isNotEmpty()) controls.forEachIndexed { i,a ->
                 NotificationIconButton(a,if(i==1)48.dp else 38.dp) { IslandController.action(a) }
             } else {
-                RoundButton("Previous",Icons.Rounded.SkipPrevious,Color.Transparent,38.dp) { media.controller?.transportControls?.skipToPrevious() }
-                RoundButton(if(media.playing)"Pause" else "Play",if(media.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,Color.Transparent,48.dp) { if(media.playing)media.controller?.transportControls?.pause() else media.controller?.transportControls?.play() }
-                RoundButton("Next",Icons.Rounded.SkipNext,Color.Transparent,38.dp) { media.controller?.transportControls?.skipToNext() }
+                RoundButton("Previous",Icons.Rounded.SkipPrevious,Color.Transparent,38.dp,flat=true) { media.controller?.transportControls?.skipToPrevious() }
+                RoundButton(if(media.playing)"Pause" else "Play",if(media.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,Color.Transparent,48.dp,flat=true) { if(media.playing)media.controller?.transportControls?.pause() else media.controller?.transportControls?.play() }
+                RoundButton("Next",Icons.Rounded.SkipNext,Color.Transparent,38.dp,flat=true) { media.controller?.transportControls?.skipToNext() }
             }
         }
 
@@ -279,14 +279,14 @@ private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);ret
 }
 @Composable private fun NotificationIconButton(a: IslandAction, size: Dp, click: ()->Unit) {
     val b=iconBitmap(a.icon)
-    Box(Modifier.size(size).iosClickable(pressedScale=.88f,onClick=click).softGlass(CircleShape),contentAlignment=Alignment.Center) {
+    Box(Modifier.size(size).iosClickable(pressedScale=.88f,onClick=click),contentAlignment=Alignment.Center) {
         if(b!=null) Image(b.asImageBitmap(),a.title,Modifier.size(size*.65f),colorFilter=ColorFilter.tint(LocalGlassPalette.current.text))
         else Icon(if(a.title.contains("pause",true))Icons.Rounded.Pause else if(a.title.contains("next",true))Icons.Rounded.SkipNext else if(a.title.contains("prev",true))Icons.Rounded.SkipPrevious else Icons.Rounded.PlayArrow,a.title,tint=LocalGlassPalette.current.text)
     }
 }
-@Composable fun RoundButton(label: String, vector: ImageVector, color: Color, size: Dp=42.dp, click: ()->Unit) {
+@Composable fun RoundButton(label: String, vector: ImageVector, color: Color, size: Dp=42.dp, flat: Boolean=false, click: ()->Unit) {
     val tinted=color!=Color.Transparent
-    Box(Modifier.size(size).iosClickable(pressedScale=.88f,onClick=click).softGlass(CircleShape,tint=if(tinted)color else null),contentAlignment=Alignment.Center) {
+    Box(Modifier.size(size).iosClickable(pressedScale=.88f,onClick=click).then(if(flat) Modifier else Modifier.softGlass(CircleShape,tint=if(tinted)color else null)),contentAlignment=Alignment.Center) {
         Icon(vector,label,Modifier.size(size*.52f),tint=if(tinted)Color.White else LocalGlassPalette.current.text)
     }
 }
