@@ -105,12 +105,6 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             // Fake frost uses notification art, never a rectangular live backdrop blur.
             val art=if(item.call) item.avatar else item.largeIcon ?: item.appIcon
             val accent=remember(item.key) { vibrant(item.largeIcon ?: item.avatar ?: item.appIcon,item.app) }
-            val glow by animateFloatAsState(if(compact)0f else 1f,tween(500),label="glow")
-            Box(Modifier.matchParentSize().graphicsLayer { alpha=glow*contentAlpha }.drawBehind { drawRect(Brush.radialGradient(listOf(accent.copy(alpha=.4f),Color.Transparent),center=androidx.compose.ui.geometry.Offset(size.width/2,0f),radius=size.width*.75f)) })
-            if(art!=null && !compact) {
-                val palette=LocalGlassPalette.current
-                Image(art.asImageBitmap(),null,Modifier.matchParentSize().graphicsLayer { scaleX=1.3f;scaleY=1.3f;alpha=if(palette.dark).12f else .09f }.blur(38.dp,BlurredEdgeTreatment.Unbounded),contentScale=ContentScale.Crop)
-            }
             CompositionLocalProvider(LocalAccent provides accent) { Box(Modifier.blur((16f*(1f-contentAlpha)).dp,BlurredEdgeTreatment.Unbounded).graphicsLayer { alpha=contentAlpha;translationY=8.dp.toPx()*(1-contentAlpha);scaleX=.86f+.14f*contentAlpha;scaleY=scaleX }) {
                 if(item.media!=null && !item.call) {
                     // Each state measures at its final width, even while the shell is narrow.
@@ -156,17 +150,17 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     else Box(modifier.size(size).clip(RoundedCornerShape(size/4)).background(Color(0xFF30343D)),contentAlignment=Alignment.Center) { Icon(Icons.Rounded.MusicNote,null,Modifier.size(size*.6f),tint=Secondary) }
 }
 @Composable private fun MessageCard(item: IslandItem, replying: Boolean, modifier: Modifier) {
-    Column(modifier,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    Column(modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-            Art(item.appIcon,16.dp);IslandText(item.app,12,LocalAccent.current,FontWeight.SemiBold,lines=1,modifier=Modifier.weight(1f));IslandText("now",12,Secondary)
+            Art(item.appIcon,16.dp);IslandText(item.app,12,LocalAccent.current,FontWeight.SemiBold,lines=1);IslandText("· now",12,Secondary)
         }
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
-                IslandText(item.title,17,weight=FontWeight.SemiBold)
-                if(item.code!=null) Text(item.code,color=LocalAccent.current,fontSize=28.sp,fontWeight=FontWeight.Bold,letterSpacing=3.sp)
-                else IslandText(item.text,14,Secondary)
-            }
             if(item.largeIcon!=null && item.code==null) Image(item.largeIcon.asImageBitmap(),null,Modifier.size(44.dp).clip(CircleShape),contentScale=ContentScale.Crop)
+            Column(Modifier.weight(1f,fill=false),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                Text(item.title,color=Color.White,fontSize=17.sp,fontWeight=FontWeight.SemiBold,textAlign=androidx.compose.ui.text.style.TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis,letterSpacing=(-.3).sp)
+                if(item.code!=null) Text(item.code,color=LocalAccent.current,fontSize=28.sp,fontWeight=FontWeight.Bold,letterSpacing=3.sp)
+                else Text(item.text,color=Secondary,fontSize=14.sp,textAlign=androidx.compose.ui.text.style.TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis,letterSpacing=(-.3).sp)
+            }
         }
         if(replying) ReplyField(item)
         else if(item.code!=null) ActionPill("Copy code",Icons.Rounded.ContentCopy) { IslandController.copyCode() }
@@ -291,9 +285,16 @@ private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);ret
     var duration by remember(start) { mutableLongStateOf((android.os.SystemClock.elapsedRealtime()-start).coerceAtLeast(0)) }
     LaunchedEffect(start) { while(true) { duration=(android.os.SystemClock.elapsedRealtime()-start).coerceAtLeast(0);delay(1000) } }
     Row(modifier.height(37.dp).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
-        IslandText(clock(duration),13,weight=FontWeight.SemiBold,lines=1,modifier=Modifier.width(44.dp).semantics { contentDescription="Call duration ${clock(duration)}" })
+        Icon(Icons.Rounded.Call,"Call",Modifier.size(15.dp),tint=IslandGreen)
+        Spacer(Modifier.width(4.dp))
+        Text(clock(duration),color=IslandGreen,fontSize=13.sp,fontWeight=FontWeight.SemiBold,maxLines=1,modifier=Modifier.semantics { contentDescription="Call duration ${clock(duration)}" })
         Spacer(Modifier.weight(1f))
-        if(item.appIcon!=null) Image(item.appIcon.asImageBitmap(),"Dialer",Modifier.size(22.dp).clip(RoundedCornerShape(6.dp)),contentScale=ContentScale.Crop)
-        else Icon(Icons.Rounded.Call,"Dialer",Modifier.size(20.dp),tint=IslandGreen)
+        val t=rememberInfiniteTransition(label="callwave")
+        Row(horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically) {
+            repeat(5) { i ->
+                val h by t.animateFloat(4f+(i%3)*2,15f-(i%2)*3,infiniteRepeatable(tween(320+i*70,easing=LinearEasing),RepeatMode.Reverse),label="cw$i")
+                Box(Modifier.width(2.5.dp).height(h.dp).clip(CircleShape).background(IslandGreen))
+            }
+        }
     }
 }
