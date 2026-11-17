@@ -90,7 +90,7 @@ class IslandNotificationService : NotificationListenerService() {
         val source=if(media != null) cover else icon
         val accent=dominant(source)
         val callType=e.getInt("android.callType",0)
-        val incoming=call && (callType == 1 || (callType == 0 && actions.any { it.kind == "accept" }))
+        val incoming=call && (callType == 1 || (callType == 0 && (actions.any { it.kind == "accept" } || actions.size >= 2)))
         return IslandItem(sbn.key,pkg,app,title,text,icon,cover,n.contentIntent,actions,call,incoming,avatar,media,NotificationRules.code("$title $text"),accent)
     }
     private fun Drawable.softwareBitmap(): Bitmap = toBitmap(128,128,Bitmap.Config.ARGB_8888).copy(Bitmap.Config.ARGB_8888,false)
