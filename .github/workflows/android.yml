@@ -69,16 +69,14 @@ jobs:
           profile: pixel_7
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
-          script: |
-            gradle --no-daemon connectedDebugAndroidTest || TEST_RESULT=$?
-            adb pull /sdcard/Android/data/com.gr4nt.dynamicisland/files/screenshots ui-screenshots || true
-            exit ${TEST_RESULT:-0}
+          script: bash scripts/check-ui.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: DynamicIsland-UI-checks
           path: |
             ui-screenshots/
+            ui-test.log
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
       - name: Publish UI previews

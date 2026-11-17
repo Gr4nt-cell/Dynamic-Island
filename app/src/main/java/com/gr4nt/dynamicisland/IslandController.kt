@@ -41,9 +41,16 @@ object IslandController {
             return
         }
         if(item.call) {
-            calls[item.key] = item
-            if(state.value.item?.key == item.key) state.value=state.value.copy(item=item)
-            else display(item,true)
+            val previous=state.value.item
+            val known=calls[item.key]?.takeIf { !it.incoming }
+                ?: calls.values.lastOrNull { it.pkg==item.pkg && !it.incoming }
+            val callItem=if(item.incoming) item else item.copy(callStartedAtElapsed=
+                known?.callStartedAtElapsed ?: item.callStartedAtElapsed ?: now)
+            // Some dialers replace the incoming notification with a new ongoing key.
+            if(!item.incoming) calls.entries.removeAll { it.value.pkg==item.pkg && it.value.incoming }
+            calls[item.key]=callItem
+            if(previous?.key==item.key && previous.incoming==item.incoming) state.value=state.value.copy(item=callItem)
+            else display(callItem,item.incoming)
             return
         }
         if(silent) return
@@ -60,20 +67,21 @@ object IslandController {
     fun schedule() {
         timer?.cancel()
         val s=state.value
-        if(s.item == null || s.item.call || s.replying || !s.expanded) return
+        if(s.item == null || (s.item.call && s.item.incoming) || s.replying || !s.expanded) return
         timer=scope.launch { delay((settings.flow.value.seconds*1000).toLong()); collapse() }
     }
     fun collapse() {
         setFocusable(false)
         val item=state.value.item
-        if(item?.media != null && item.media.playing && item.key !in hiddenMedia) display(item,false) else fallback()
+        if(item?.call == true && !item.incoming) display(item,false)
+        else if(item?.media != null && item.media.playing && item.key !in hiddenMedia) display(item,false) else fallback()
     }
     private fun fallback() {
         timer?.cancel();setFocusable(false)
         val c=calls.values.lastOrNull()
         val m=media?.takeIf { it.media?.playing == true && it.key !in hiddenMedia }
         val item=c ?: m
-        state.value=IslandState(item,item?.call == true,false,state.value.generation+1)
+        state.value=IslandState(item,item?.call == true && item.incoming,false,state.value.generation+1)
     }
     fun dismiss() {
         val item=state.value.item ?: return
@@ -88,7 +96,7 @@ object IslandController {
     }
     fun tap() {
         val s=state.value;val item=s.item ?: return
-        if(item.media != null && !s.expanded) display(item,true)
+        if((item.media != null || (item.call && !item.incoming)) && !s.expanded) display(item,true)
         else if(!s.replying) { sendIntent { item.intent?.send() }; collapse() }
     }
     fun reply() { timer?.cancel();state.value=state.value.copy(replying=true);setFocusable(true) }
@@ -114,7 +122,7 @@ object IslandController {
     fun toast(text: String) { Toast.makeText(context,text,Toast.LENGTH_SHORT).show() }
     fun preview(kind: String = "message") {
         val base=IslandItem("preview","preview","Messages","Ama","See you in a few minutes. I’m bringing the camera.")
-        display(when(kind){"call"->base.copy(app="Phone",call=true,incoming=true);"code"->base.copy(app="Verification",title="Verification code",text="Your code is 482916",code="482916");else->base},true)
-        if(kind=="call") timer=scope.launch { delay(6000);removed("preview") }
+        display(when(kind){"call"->base.copy(app="Phone",call=true,incoming=true);"ongoing"->base.copy(app="Phone",call=true,incoming=false,callStartedAtElapsed=SystemClock.elapsedRealtime()-42000);"code"->base.copy(app="Verification",title="Verification code",text="Your code is 482916",code="482916");else->base},kind!="ongoing")
+        if(kind=="call" || kind=="ongoing") timer=scope.launch { delay(6000);removed("preview") }
     }
 }

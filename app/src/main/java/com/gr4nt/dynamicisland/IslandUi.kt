@@ -22,6 +22,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.*
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.*
 import androidx.compose.ui.platform.*
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -63,11 +64,12 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     }
     val item=state.item ?: retained
     if(item == null) { Spacer(Modifier.size(1.dp));return }
-    val compact=item.media != null && !state.expanded
+    val compact=(item.media != null || (item.call && !item.incoming)) && !state.expanded
+    val pillWidth=if(item.call)144.dp else 108.dp
     BoxWithConstraints(Modifier.fillMaxWidth(),contentAlignment=Alignment.TopCenter) {
         val cardWidth=maxWidth
-        val shellWidth by animateDpAsState(if(compact)108.dp else cardWidth,spring(.8f,Spring.StiffnessMediumLow),label="shell width")
-        val widthProgress=if(cardWidth>108.dp) ((shellWidth-108.dp)/(cardWidth-108.dp)).coerceIn(0f,1f) else 1f
+        val shellWidth by animateDpAsState(if(compact)pillWidth else cardWidth,spring(.8f,Spring.StiffnessMediumLow),label="shell width")
+        val widthProgress=if(cardWidth>pillWidth) ((shellWidth-pillWidth)/(cardWidth-pillWidth)).coerceIn(0f,1f) else 1f
         val corners=RoundedCornerShape(layout.topLeft.dp,layout.topRight.dp,layout.bottomRight.dp,layout.bottomLeft.dp)
         val contentAlpha=minOf(((opening.value-.4f)/.6f).coerceIn(0f,1f),reveal.value)
         Box(Modifier.width(shellWidth).graphicsLayer {
@@ -99,7 +101,10 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
                             MusicCard(item,Modifier.padding(horizontal=20.dp,vertical=8.dp))
                         }
                     }
-                } else if(item.call) CallCard(item)
+                } else if(item.call) Box(contentAlignment=Alignment.TopCenter) {
+                    if(widthProgress < .99f) CallPill(item,Modifier.requiredWidth(pillWidth).alpha(1-widthProgress))
+                    if(widthProgress > .01f) Box(Modifier.requiredWidth(cardWidth).alpha(widthProgress)) { CallCard(item) }
+                }
                 else Column(Modifier.requiredWidth(cardWidth)) {
                     CameraBand(layout)
                     MessageCard(item,state.replying,Modifier.padding(horizontal=20.dp))
@@ -266,5 +271,18 @@ private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);ret
     val lensY=if(compact) estimatedTop+diameter/2-10f*actualDensity else diameter/2+layout.gap*actualDensity
     Canvas(modifier) {
         drawCircle(Color.Black,diameter/2+1.5f*actualDensity,center=androidx.compose.ui.geometry.Offset(size.width/2,lensY))
+    }
+}
+
+@Composable private fun CallPill(item: IslandItem, modifier: Modifier) {
+    val fallbackStart=remember(item.key) { android.os.SystemClock.elapsedRealtime() }
+    val start=item.callStartedAtElapsed ?: fallbackStart
+    var duration by remember(start) { mutableLongStateOf((android.os.SystemClock.elapsedRealtime()-start).coerceAtLeast(0)) }
+    LaunchedEffect(start) { while(true) { duration=(android.os.SystemClock.elapsedRealtime()-start).coerceAtLeast(0);delay(1000) } }
+    Row(modifier.height(37.dp).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
+        IslandText(clock(duration),13,weight=FontWeight.SemiBold,lines=1,modifier=Modifier.width(44.dp).semantics { contentDescription="Call duration ${clock(duration)}" })
+        Spacer(Modifier.weight(1f))
+        if(item.appIcon!=null) Image(item.appIcon.asImageBitmap(),"Dialer",Modifier.size(22.dp).clip(RoundedCornerShape(6.dp)),contentScale=ContentScale.Crop)
+        else Icon(Icons.Rounded.Call,"Dialer",Modifier.size(20.dp),tint=IslandGreen)
     }
 }

@@ -92,7 +92,12 @@ class IslandNotificationService : NotificationListenerService() {
         val accent=dominant(source)
         val callType=e.getInt("android.callType",0)
         val incoming=call && (callType == 1 || (callType == 0 && (actions.any { it.kind == "accept" } || actions.size >= 2)))
-        return IslandItem(sbn.key,pkg,app,title,text,icon,cover,n.contentIntent,actions,call,incoming,avatar,media,NotificationRules.code("$title $text"),accent)
+        val callStart=NotificationRules.callStart(n.`when`,e.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER),incoming,System.currentTimeMillis(),SystemClock.elapsedRealtime())
+        val callIcon=if(call) runCatching {
+            getSystemService(android.telecom.TelecomManager::class.java).defaultDialerPackage
+                ?.let { packageManager.getApplicationIcon(it).softwareBitmap() }
+        }.getOrNull() ?: icon else icon
+        return IslandItem(sbn.key,pkg,app,title,text,callIcon,cover,n.contentIntent,actions,call,incoming,avatar,media,NotificationRules.code("$title $text"),accent,callStart)
     }
     private fun Drawable.softwareBitmap(): Bitmap = toBitmap(128,128,Bitmap.Config.ARGB_8888).copy(Bitmap.Config.ARGB_8888,false)
     private fun dominant(bitmap: Bitmap?): Int {

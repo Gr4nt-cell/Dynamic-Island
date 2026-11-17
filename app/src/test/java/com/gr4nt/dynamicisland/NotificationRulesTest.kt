@@ -9,5 +9,11 @@ class NotificationRulesTest {
         assertNull(NotificationRules.code("OTP 123456789"))
         assertEquals("4321",NotificationRules.code("PIN: 4321"))
     }
+    @Test fun callDurationUsesConnectedChronometerRatherThanRingingTime() {
+        assertEquals(70000L, NotificationRules.callStart(970000L,true,false,1000000L,100000L))
+        assertNull(NotificationRules.callStart(970000L,true,true,1000000L,100000L))
+        assertNull(NotificationRules.callStart(970000L,false,false,1000000L,100000L))
+        assertNull(NotificationRules.callStart(1000001L,true,false,1000000L,100000L))
+    }
     @Test fun callActionLabelsOverrideOrder() { assertEquals("decline",NotificationRules.actionKind("Hang up")); assertEquals("accept",NotificationRules.actionKind("Answer")); assertEquals("read",NotificationRules.actionKind("Mark as read")) }
 }

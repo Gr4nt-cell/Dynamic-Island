@@ -41,6 +41,26 @@ class GlassUiTest {
         compose.onNodeWithContentDescription("Accept call").assertIsDisplayed()
         compose.onNodeWithContentDescription("Decline call").assertIsDisplayed()
     }
+    @Test fun answeredCallShrinksToDurationPillAndReopensControls() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val intent=PendingIntent.getActivity(context,1,Intent(context,MainActivity::class.java),PendingIntent.FLAG_IMMUTABLE)
+        val incoming=base.copy(key="call-transition",pkg="test.dialer",call=true,incoming=true,actions=listOf(IslandAction("Decline",intent,null),IslandAction("Accept",intent,null)))
+        compose.mainClock.autoAdvance=false
+        compose.setContent { val state by IslandController.state.collectAsState();IslandTheme(forceDark=false) { Box(Modifier.fillMaxSize()) { GlassBackdrop(Modifier.matchParentSize());IslandOverlay(state,IslandLayout()) } } }
+        try {
+            compose.runOnIdle { IslandController.post(incoming) }
+            compose.mainClock.advanceTimeBy(1200)
+            compose.onNodeWithContentDescription("Accept call").assertIsDisplayed()
+            compose.runOnIdle { IslandController.post(incoming.copy(incoming=false,callStartedAtElapsed=SystemClock.elapsedRealtime()-30000,actions=listOf(IslandAction("Hang up",intent,null)))) }
+            compose.mainClock.advanceTimeBy(1200)
+            compose.onNodeWithContentDescription("Call duration",substring=true).assertIsDisplayed()
+            compose.onNodeWithContentDescription("Dialer").assertIsDisplayed()
+            capture("answered-call-pill-light")
+            compose.onNodeWithContentDescription("Call duration",substring=true).performClick()
+            compose.mainClock.advanceTimeBy(1200)
+            compose.onNodeWithContentDescription("Hang up").assertIsDisplayed()
+        } finally { compose.runOnIdle { IslandController.removed("call-transition") } }
+    }
     @Test fun codeLight() { scene("code-light",false,base.copy(code="482916"));compose.onNodeWithText("Copy code").assertIsDisplayed() }
     @Test fun mediaResizesWithoutMeasuringCardAtPillWidth() {
         val item=base.copy(app="Music",title="A little closer",text="Evening Sessions",media=MediaInfo(null,222000,84000,SystemClock.elapsedRealtime(),1f,true))

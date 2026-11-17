@@ -36,6 +36,8 @@ class LayoutStore(private val context: Context, scope: CoroutineScope) {
 object NotificationRules {
     fun code(text: String): String? = if (Regex("(?i)\\b(code|otp|verification|pin|passcode)\\b").containsMatchIn(text))
         Regex("(?<!\\d)\\d{4,8}(?!\\d)").find(text)?.value else null
+    fun callStart(whenMillis: Long, chronometer: Boolean, incoming: Boolean, wallNow: Long, elapsedNow: Long): Long? =
+        if(!incoming && chronometer && whenMillis in 1..wallNow) (elapsedNow-(wallNow-whenMillis)).coerceAtLeast(0) else null
     fun cameraTop(top: Int, bottom: Int, width: Int): Int = if(top == 0) (bottom-width).coerceAtLeast(0) else top
     fun actionKind(label: String): String {
         val t = label.lowercase()

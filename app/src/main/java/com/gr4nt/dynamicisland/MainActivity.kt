@@ -100,6 +100,7 @@ class MainActivity : ComponentActivity() {
                     GlassButton("Test call",Modifier.weight(1f),onClick={ if(connected)IslandController.preview("call") else localPreview=true })
                     GlassButton("Test code",Modifier.weight(1f),onClick={ if(connected)IslandController.preview("code") else localPreview=true })
                 }
+                GlassButton("Preview answered-call pill",Modifier.fillMaxWidth(),Icons.Rounded.Call,onClick={ if(connected)IslandController.preview("ongoing") else localPreview=true })
             }
         }
         }
