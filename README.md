@@ -1,3 +1,13 @@
+## Version 1.6 — simultaneous islands and live/system activities
+
+A second opaque black 37 dp circle appears beside a compact main pill when another app has an active call, playing media, navigation, timer/stopwatch or recording notification. Tap it to swap the activities using a quick blur, elastic shell stretch and spring settling. The main pill stays centred on the camera. Expanded cards and focused replies hide the side circle; incoming calls retain priority. Removing or pausing an activity updates the circle and restores the next active app without restarting call timing.
+
+Persistent activities from `island-colour` are integrated into the current size/color/motion system: navigation, countdown timers, stopwatches and voice recording. System events include charging, low battery (including jumps below 20%), ring/silent/vibrate, wired/USB/Bluetooth headset connection, hotspot, Do Not Disturb and unlock confirmation. Battery monitoring uses power broadcasts and sticky battery-state fallback, with duplicate suppression. A single monitor is shared by overlay and notification connections, and listener disconnects request rebind.
+
+Unlock uses USER_PRESENT and a bounded, screen-on KeyguardManager check to confirm authentication. Android does not identify the system unlock modality to this app, so confirmation includes face, fingerprint, PIN and other successful unlocks. It does not read facial data or perform authentication. Hotspot announcements depend on the ROM delivering its hotspot-state broadcast. Audio-device callbacks use product labels without requesting Bluetooth device-address access.
+
+Messages use measured text wrapping and font scale to choose a shell: tiny single-line text in the small card, up to two lines in medium, and longer/actionable messages, codes and replies in large. Content never stretches a preset shell. All sizes, opaque black surfaces, vivid accents and the 16 dp default camera gap are preserved.
+
 ## Version 1.5
 
 Large cards are another 5% shorter: 366 × 191.52 dp. Other shell sizes are unchanged. Vivid artwork-derived accents now also style brief-message details, app headers, verification-code gradients, reply/read actions, copy/archive/delete chips, reply cursors, and call status text. Small status cards use semantic green/red/amber/cyan accents and gradient battery indicators. All island backgrounds remain opaque black; call timing and motion are unchanged. New installs default to 10 dp left/right margins, a 16 dp camera gap, 100% size, six-second display time, countdown off and all apps on. Existing saved calibration is preserved.

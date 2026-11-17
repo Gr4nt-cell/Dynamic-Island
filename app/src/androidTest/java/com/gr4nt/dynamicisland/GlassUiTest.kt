@@ -214,6 +214,92 @@ class GlassUiTest {
             capture("answered-colour-call-pill")
         } finally { compose.runOnIdle { IslandController.removed(outgoing.key) } }
     }
+    @Test fun secondCircleSwapsActivitiesAndPreservesConnectedCallTime() {
+        val start=SystemClock.elapsedRealtime()-30000
+        val call=base.copy(key="dual-call",pkg="test.dual.call",app="Phone",call=true,callStartedAtElapsed=start)
+        val nav=base.copy(key="dual-nav",pkg="test.dual.maps",app="Maps",title="Head south",text="Continue 300 m",activity=LiveActivity(ActivityKind.NAVIGATION,value="300 m"))
+        compose.mainClock.autoAdvance=false
+        compose.setContent { val state by IslandController.state.collectAsState();IslandTheme { Box(Modifier.fillMaxSize()) { GlassBackdrop(Modifier.matchParentSize());IslandOverlay(state,IslandLayout()) } } }
+        try {
+            compose.runOnIdle { IslandController.post(call);IslandController.post(nav) }
+            compose.mainClock.advanceTimeBy(1200)
+            compose.onNodeWithTag("secondary-island").assertIsDisplayed().assertWidthIsEqualTo(37.dp).assertHeightIsEqualTo(37.dp)
+            capture("dual-call-navigation")
+            compose.onNodeWithTag("secondary-island").performClick()
+            compose.mainClock.advanceTimeBy(80);capture("hyperos-handoff")
+            compose.mainClock.advanceTimeBy(1200)
+            compose.runOnIdle { assertEquals(nav.key,IslandController.state.value.item?.key);assertEquals(start,IslandController.state.value.secondary?.callStartedAtElapsed) }
+            capture("dual-navigation-call")
+            compose.onNodeWithTag("secondary-island").performClick()
+            compose.mainClock.advanceTimeBy(1200)
+            compose.runOnIdle { assertEquals(call.key,IslandController.state.value.item?.key);assertEquals(start,IslandController.state.value.item?.callStartedAtElapsed) }
+        } finally { compose.runOnIdle { IslandController.removed(call.key);IslandController.removed(nav.key) } }
+    }
+    @Test fun liveNavigationAndMusicSurviveSwitchingAndRemoval() {
+        val music=base.copy(key="dual-music",pkg="test.dual.music",app="Music",media=MediaInfo(null,222000,84000,SystemClock.elapsedRealtime(),1f,true))
+        val nav=base.copy(key="dual-directions",pkg="test.dual.directions",app="Maps",activity=LiveActivity(ActivityKind.NAVIGATION,value="300 m"))
+        compose.setContent { Box(Modifier.fillMaxSize()) }
+        try {
+            compose.runOnIdle {
+                IslandController.post(music);IslandController.post(nav)
+                assertEquals(nav.key,IslandController.state.value.item?.key)
+                assertEquals(music.key,IslandController.state.value.secondary?.key)
+                IslandController.swap()
+                assertEquals(music.key,IslandController.state.value.item?.key)
+                assertEquals(nav.key,IslandController.state.value.secondary?.key)
+                IslandController.removed(nav.key)
+                assertNull(IslandController.state.value.secondary)
+                assertEquals(music.key,IslandController.state.value.item?.key)
+                IslandController.post(music.copy(media=music.media!!.copy(playing=false)))
+                assertNull(IslandController.state.value.item)
+            }
+        } finally { compose.runOnIdle { IslandController.removed(music.key);IslandController.removed(nav.key) } }
+    }
+    @Test fun messagesChooseShellUsingRenderedLineCount() {
+        val item=mutableStateOf(base.copy(title="Ama",text="Hi"))
+        compose.mainClock.autoAdvance=false
+        compose.setContent { IslandTheme { Box(Modifier.fillMaxSize()) { GlassBackdrop(Modifier.matchParentSize());IslandOverlay(IslandState(item.value),IslandLayout()) } } }
+        compose.mainClock.advanceTimeBy(1200)
+        compose.onNodeWithTag("island-shell").assertWidthIsEqualTo(250.dp).assertHeightIsEqualTo(48.dp)
+        capture("short-message-small")
+        compose.runOnIdle { item.value=item.value.copy(text="Two lines\nSee you soon") }
+        compose.mainClock.advanceTimeBy(1200)
+        compose.onNodeWithTag("island-shell").assertWidthIsEqualTo(366.dp).assertHeightIsEqualTo(96.dp)
+        capture("two-line-message-medium")
+        compose.runOnIdle { item.value=item.value.copy(text="One\nTwo\nThree") }
+        compose.mainClock.advanceTimeBy(1200)
+        compose.onNodeWithTag("island-shell").assertHeightIsEqualTo(191.52.dp)
+        capture("three-line-message-large")
+    }
+    @Test fun systemReceiverRoutesChargingLowBatteryRingerAndUnlock() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val receiver=SystemIslandEvents(context,IslandController.scope)
+        compose.mainClock.autoAdvance=false
+        compose.setContent { val state by IslandController.state.collectAsState();IslandTheme { Box(Modifier.fillMaxSize()) { GlassBackdrop(Modifier.matchParentSize());IslandOverlay(state,IslandLayout()) } } }
+        fun battery(level: Int)=Intent(Intent.ACTION_BATTERY_CHANGED).putExtra(android.os.BatteryManager.EXTRA_LEVEL,level).putExtra(android.os.BatteryManager.EXTRA_SCALE,100).putExtra(android.os.BatteryManager.EXTRA_PLUGGED,0)
+        try {
+            compose.runOnIdle {
+                receiver.onReceive(context,battery(21))
+                receiver.onReceive(context,Intent(Intent.ACTION_POWER_CONNECTED))
+                assertEquals(IslandEvent.CHARGING,IslandController.state.value.item?.event)
+            }
+            compose.mainClock.advanceTimeBy(1200);capture("power-connected-system-island")
+            compose.runOnIdle {
+                receiver.onReceive(context,Intent(Intent.ACTION_POWER_DISCONNECTED));receiver.onReceive(context,battery(21));receiver.onReceive(context,battery(19))
+                assertEquals(IslandEvent.LOW_BATTERY,IslandController.state.value.item?.event)
+                assertEquals("19%",IslandController.state.value.item?.text)
+            }
+            compose.mainClock.advanceTimeBy(1200);capture("low-battery-crossing-system-island")
+            compose.runOnIdle {
+                receiver.onReceive(context,Intent(android.media.AudioManager.RINGER_MODE_CHANGED_ACTION).putExtra(android.media.AudioManager.EXTRA_RINGER_MODE,android.media.AudioManager.RINGER_MODE_VIBRATE))
+                assertEquals(IslandEvent.RINGER,IslandController.state.value.item?.event)
+                assertEquals("Vibrate",IslandController.state.value.item?.text)
+                receiver.onReceive(context,Intent(Intent.ACTION_USER_PRESENT))
+                assertEquals(IslandEvent.UNLOCK,IslandController.state.value.item?.event)
+            }
+            compose.mainClock.advanceTimeBy(1200);capture("unlock-confirmation-system-island")
+        } finally { compose.runOnIdle { listOf(IslandEvent.CHARGING,IslandEvent.LOW_BATTERY,IslandEvent.RINGER,IslandEvent.UNLOCK).forEach { IslandController.removed("system-${it.name}") } } }
+    }
     @Test fun settingsLightAndPreview() {
         compose.setContent { IslandTheme(forceDark=false) { SettingsScreen() } }
         compose.onNodeWithText("Around your camera.").assertIsDisplayed();capture("settings-light")

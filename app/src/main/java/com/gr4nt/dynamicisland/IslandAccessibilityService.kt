@@ -33,8 +33,9 @@ class IslandAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         wm=getSystemService(WindowManager::class.java)
         IslandController.connected.value=true
+        IslandController.updateSystemMonitoring()
         IslandController.setFocusable={ focus -> focused=focus;updateWindow() }
-        scope.launch { IslandController.settings.flow.collect { rebuild() } }
+        scope.launch { IslandController.settings.flow.collect { if(view==null) rebuild() else updateWindow() } }
         scope.launch { IslandController.state.map { Triple(it.item?.key, it.expanded, it.item != null) }.distinctUntilChanged().collect { updateWindow() } }
     }
     private fun makeParams(): WindowManager.LayoutParams {
@@ -88,7 +89,7 @@ class IslandAccessibilityService : AccessibilityService() {
     override fun onInterrupt() { IslandController.cancelReply() }
     override fun onUnbind(intent: android.content.Intent?): Boolean { cleanup();return super.onUnbind(intent) }
     private fun cleanup() {
-        IslandController.connected.value=false;IslandController.setFocusable={};removeView()
+        IslandController.connected.value=false;IslandController.updateSystemMonitoring();IslandController.setFocusable={};removeView()
         // Restore native heads-up when disabled, when possible. Global changes otherwise survive app death.
         IslandController.scope.launch { if(IslandController.root.hidden) IslandController.root.nativeHeadsUp(false) }
     }

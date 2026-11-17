@@ -94,6 +94,11 @@ class MainActivity : ComponentActivity() {
                     GlassButton("Test call",Modifier.weight(1f),onClick={ if(connected)IslandController.preview("call") else localPreview=true })
                     GlassButton("Test code",Modifier.weight(1f),onClick={ if(connected)IslandController.preview("code") else localPreview=true })
                 }
+                IslandText("LIVE ACTIVITIES",11,SettingsAccent,FontWeight.Bold,lines=1)
+                listOf("Two simultaneous islands" to "simultaneous","Navigation" to "navigation","Timer" to "timer","Stopwatch" to "stopwatch","Recording" to "recording","Unlock confirmation" to "unlock","Ring mode" to "ring","Vibrate mode" to "vibrate","Headphones" to "headphones","Hotspot" to "hotspot","Do Not Disturb" to "dnd").forEach { (label,kind) ->
+                    GlassButton(label,Modifier.fillMaxWidth(),onClick={ if(connected)IslandController.preview(kind) else localPreview=true })
+                }
+                IslandText("Tap the second circle to switch apps. Unlock confirmation follows Android’s unlock state, including face, fingerprint and PIN. Tap a low-battery island to open Battery Saver.",12,Secondary,lines=5)
                 GlassButton("Preview answered-call pill",Modifier.fillMaxWidth(),Icons.Rounded.Call,onClick={ if(connected)IslandController.preview("ongoing") else localPreview=true })
             }
         }
@@ -119,7 +124,7 @@ class MainActivity : ComponentActivity() {
             IslandText("Disable the system music island for each music app in Settings → Notifications → Hyper Island → App permissions. This app cannot remove it.",13,Secondary,lines=5)
             IslandText("Without root, native heads-up notifications can still appear. Android may hide sensitive notification text. Notification actions and camera alignment depend on your device and apps.",12,Secondary,lines=5)
         }
-        IslandText("Dynamic Island 1.5 · Android 11+\nDesigned for centre punch-hole cameras.",12,Secondary,lines=2)
+        IslandText("Dynamic Island 1.6 · Android 11+\nDesigned for centre punch-hole cameras.",12,Secondary,lines=2)
         Spacer(Modifier.height(20.dp))
     }
     }

@@ -6,6 +6,7 @@ import androidx.compose.animation.core.*
 object IslandMotion {
     private val ease=CubicBezierEasing(.22f,1f,.36f,1f)
     fun morph(): SpringSpec<Float> = spring(dampingRatio=.86f,stiffness=380f)
+    fun handoff(): SpringSpec<Float> = spring(dampingRatio=.78f,stiffness=650f)
     fun close(): TweenSpec<Float> = tween(300,easing=ease)
     fun <T> fadeIn(): TweenSpec<T> = tween(180,easing=ease)
     fun fadeOut(): TweenSpec<Float> = tween(85,easing=LinearEasing)

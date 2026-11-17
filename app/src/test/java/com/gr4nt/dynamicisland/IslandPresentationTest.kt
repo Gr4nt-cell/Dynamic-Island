@@ -9,7 +9,7 @@ class IslandPresentationTest {
         assertEquals(4,IslandTier.entries.size)
         for(pkg in listOf("whatsapp","telegram","gmail")) {
             val item=message.copy(pkg=pkg)
-            assertEquals(IslandTier.MEDIUM,IslandPresentation.tier(item,true))
+            assertEquals(IslandTier.SMALL,IslandPresentation.tier(item,true))
             assertEquals(IslandTier.LARGE,IslandPresentation.tier(item.copy(text="Long message ".repeat(40)),true))
             assertEquals(IslandTier.LARGE,IslandPresentation.tier(item,true,replying=true))
             assertEquals(IslandTier.MEDIUM,IslandPresentation.tier(item.copy(call=true,incoming=true),true))

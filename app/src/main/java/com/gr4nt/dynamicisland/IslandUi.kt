@@ -3,6 +3,7 @@ package com.gr4nt.dynamicisland
 import android.graphics.Bitmap
 import android.graphics.drawable.Icon as AndroidIcon
 import androidx.compose.animation.core.*
+import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.interaction.*
@@ -25,6 +26,8 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.*
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,12 +74,28 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
 @Composable fun IslandOverlay(state: IslandState, layout: IslandLayout) {
     val originalDensity=LocalDensity.current
     val scaled=Density(originalDensity.density*layout.size/100f,originalDensity.fontScale)
-    CompositionLocalProvider(LocalDensity provides scaled) { IslandTheme(forceDark=true) { OverlayContent(state,layout) } }
+    CompositionLocalProvider(LocalDensity provides scaled) { IslandTheme(forceDark=true) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) { OverlayContent(state,layout,measuredMessageTier(state,maxWidth)) }
+    } }
 }
-@Composable private fun OverlayContent(state: IslandState, layout: IslandLayout) {
+@Composable private fun measuredMessageTier(state: IslandState, available: Dp): IslandTier? {
+    val item=state.item ?: return null
+    val base=IslandPresentation.tier(item,state.expanded,state.replying)
+    if(state.replying || item.call || item.media!=null || item.activity!=null || item.event!=IslandEvent.NOTIFICATION || item.code!=null || item.actions.isNotEmpty())return base
+    val measure=rememberTextMeasurer();val density=LocalDensity.current
+    val small=(minOf(250f,available.value)-28f-36f)/2f
+    fun lines(text: String,size: Int,width: Float): Int = measure.measure(AnnotatedString(text),TextStyle(fontSize=size.sp,lineHeight=(size+4).sp),
+        maxLines=3,constraints=Constraints(maxWidth=with(density) { width.dp.roundToPx() }.coerceAtLeast(1))).lineCount
+    return MessageSizeRules.measured(lines(item.text,12,small),lines(item.title,12,small-22f),lines(item.text,14,minOf(366f,available.value)-40f))
+}
+@Composable private fun OverlayContent(state: IslandState, layout: IslandLayout, measuredTier: IslandTier?) {
     var retained by remember { mutableStateOf(state.item) }
-    var retainedExpanded by remember { mutableStateOf(state.expanded) }
-    var retainedReplying by remember { mutableStateOf(state.replying) }
+    var retainedTier by remember { mutableStateOf(measuredTier ?: IslandTier.PILL) }
+    var handledSwap by remember { mutableLongStateOf(state.swapGeneration) }
+    val handoff=remember { Animatable(1f) }
+    LaunchedEffect(state.swapGeneration) {
+        if(state.swapGeneration>0) { handoff.snapTo(0f);handoff.animateTo(1f,IslandMotion.handoff()) }
+    }
     val width=remember { Animatable(48f) }
     val height=remember { Animatable(30f) }
     val corner=remember { Animatable(15f) }
@@ -84,10 +103,12 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     val reveal=remember { Animatable(0f) }
     val drag=remember { Animatable(0f) }
     val scope=rememberCoroutineScope()
-    val targetTier=state.item?.let { IslandPresentation.tier(it,state.expanded,state.replying) }
+    val targetTier=measuredTier
     // A single shell owns both dimensions. Never scale text or ask content to size the shell.
     LaunchedEffect(state.item?.key,targetTier,state.replying) {
-        reveal.animateTo(0f,IslandMotion.fadeOut())
+        val exchanging=state.swapGeneration!=handledSwap
+        handledSwap=state.swapGeneration
+        reveal.animateTo(0f,if(exchanging)tween(55) else IslandMotion.fadeOut())
         if(state.item==null) {
             coroutineScope {
                 launch { width.animateTo(48f,IslandMotion.close()) }
@@ -98,21 +119,23 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             retained=null
         } else {
             retained=state.item
-            retainedExpanded=state.expanded;retainedReplying=state.replying
             val tier=targetTier ?: IslandTier.PILL
+            retainedTier=tier
             coroutineScope {
                 launch { width.animateTo(tier.width,IslandMotion.morph()) }
                 launch { height.animateTo(tier.height,IslandMotion.morph()) }
                 launch { corner.animateTo(tier.radius,IslandMotion.morph()) }
                 launch { opacity.animateTo(1f,IslandMotion.fadeIn()) }
-                launch { delay(95);reveal.animateTo(1f,IslandMotion.fadeIn()) }
+                launch { delay(if(exchanging)0 else 95);reveal.animateTo(1f,if(exchanging)tween(140,easing=CubicBezierEasing(.22f,1f,.36f,1f)) else IslandMotion.fadeIn()) }
             }
         }
     }
     val item=if(state.item?.key==retained?.key) state.item ?: retained else retained
     if(item==null) { Spacer(Modifier.size(1.dp));return }
-    val tier=IslandPresentation.tier(item,retainedExpanded,retainedReplying)
+    val tier=retainedTier
     val compact=tier==IslandTier.PILL
+    var retainedSecondary by remember { mutableStateOf(state.secondary) }
+    SideEffect { if(state.secondary!=null)retainedSecondary=state.secondary }
     BoxWithConstraints(Modifier.fillMaxWidth(),contentAlignment=Alignment.TopCenter) {
         val contentWidth=minOf(tier.width.dp,maxWidth)
         val shellWidth=minOf(width.value.dp,maxWidth)
@@ -120,7 +143,11 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
         val shape=RoundedCornerShape(radius.dp)
         Box(Modifier.width(shellWidth).height(height.value.dp.coerceAtLeast(1.dp))
             .testTag("island-shell").semantics { contentDescription="Island ${tier.name.lowercase()}" }
-            .graphicsLayer { alpha=opacity.value;translationY=drag.value }
+            .graphicsLayer {
+                alpha=opacity.value;translationY=drag.value
+                val stretch=kotlin.math.sin(handoff.value.coerceIn(0f,1f)*kotlin.math.PI.toFloat())
+                scaleX=1f+.035f*stretch;scaleY=1f-.025f*stretch
+            }
             .clip(shape).background(Color.Black)
             .draggable(rememberDraggableState { delta -> scope.launch { drag.snapTo((drag.value+delta).coerceAtMost(0f)) } },Orientation.Vertical,
                 onDragStopped={ if(drag.value < -40f) { IslandController.dismiss();drag.snapTo(0f) } else drag.animateTo(0f,IslandMotion.morph()) })
@@ -130,20 +157,24 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             // Measure content at its destination size while the shell morphs and clips it.
             val accent=remember(item.largeIcon,item.appIcon,item.pkg) { vividAccent(item) }
             CompositionLocalProvider(LocalIslandAccent provides accent) {
-            Box(Modifier.requiredSize(contentWidth,tier.height.dp).graphicsLayer {
+            Box(Modifier.requiredSize(contentWidth,tier.height.dp).blur((6f*(1f-handoff.value).coerceIn(0f,1f)).dp).graphicsLayer {
                 alpha=reveal.value.coerceIn(0f,1f)
                 translationY=4.dp.toPx()*(1-reveal.value)
+                translationX=-6.dp.toPx()*(1-handoff.value)
             },contentAlignment=Alignment.TopCenter) {
                 when {
                     compact && item.call -> CallPill(item,Modifier.fillMaxWidth())
+                    compact && item.activity!=null -> ActivityPill(item)
                     compact -> MusicPill(item,Modifier.fillMaxWidth())
-                    tier==IslandTier.SMALL -> StatusCard(item)
+                    item.event!=IslandEvent.NOTIFICATION -> StatusCard(item)
+                    tier==IslandTier.SMALL -> SmallMessageCard(item)
                     item.call -> CallCard(item)
+                    tier==IslandTier.MEDIUM && item.activity==null -> BriefCard(item)
                     else -> Column(Modifier.fillMaxSize()) {
                         CameraBand(layout)
                         when {
                             item.media!=null -> MusicCard(item,Modifier.fillMaxWidth().weight(1f).padding(horizontal=20.dp,vertical=4.dp))
-                            tier==IslandTier.MEDIUM -> BriefCard(item)
+                            item.activity!=null -> ActivityCard(item,Modifier.fillMaxWidth().weight(1f).padding(horizontal=20.dp))
                             else -> Box(Modifier.weight(1f).fillMaxWidth()) {
                                 MessageCard(item,state.replying,Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=20.dp,vertical=4.dp))
                             }
@@ -155,6 +186,17 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             }
             }
         }
+        AnimatedVisibility(visible=compact && state.secondary!=null && !state.expanded && !state.replying && maxWidth>=240.dp,
+            modifier=Modifier.align(Alignment.TopCenter).offset(x=shellWidth/2+26.5.dp),
+            enter=fadeIn(IslandMotion.fadeIn())+scaleIn(IslandMotion.settle(),initialScale=.55f),
+            exit=fadeOut(IslandMotion.fadeOut())+scaleOut(IslandMotion.exit(),targetScale=.6f)) {
+            (state.secondary ?: retainedSecondary)?.let { secondary ->
+                SideIsland(secondary,Modifier.blur((3f*(1f-handoff.value).coerceIn(0f,1f)).dp).graphicsLayer {
+                    val progress=handoff.value.coerceIn(0f,1f)
+                    translationX=8.dp.toPx()*(1-progress);scaleX=.8f+.2f*progress;scaleY=scaleX
+                })
+            }
+        }
     }
 }
 @Composable private fun CameraBand(layout: IslandLayout) {
@@ -164,12 +206,73 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     val cameraHeight=(rect?.width()?.div(physicalDensity) ?: 26f).coerceAtMost(28f)/(layout.size/100f)
     Spacer(Modifier.height((cameraHeight+layout.gap+4f).coerceIn(28f,40f).dp))
 }
+@Composable private fun SmallMessageCard(item: IslandItem) {
+    Row(Modifier.fillMaxSize().padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically) {
+        Row(Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically) {
+            Art(item.appIcon,16.dp,fallback=Icons.Rounded.ChatBubble)
+            IslandText(item.title,12,weight=FontWeight.SemiBold,lines=1,modifier=Modifier.weight(1f))
+        }
+        Spacer(Modifier.width(36.dp))
+        IslandText(item.text,12,LocalIslandAccent.current,lines=1,modifier=Modifier.weight(1f))
+    }
+}
 @Composable private fun BriefCard(item: IslandItem) {
-    Row(Modifier.fillMaxWidth().padding(horizontal=20.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-        Art(item.appIcon,32.dp,fallback=Icons.Rounded.ChatBubble)
-        Column(Modifier.weight(1f)) {
-            IslandText(item.title,16,weight=FontWeight.SemiBold,lines=1)
-            IslandText(item.text,13,LocalIslandAccent.current,lines=1)
+    Column(Modifier.fillMaxSize().padding(horizontal=20.dp,vertical=8.dp)) {
+        Row(Modifier.fillMaxWidth().height(32.dp),verticalAlignment=Alignment.CenterVertically) {
+            Row(Modifier.weight(1f),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                Art(item.appIcon,18.dp,fallback=Icons.Rounded.ChatBubble)
+                IslandText(item.title,14,weight=FontWeight.SemiBold,lines=1,modifier=Modifier.weight(1f))
+            }
+            Spacer(Modifier.width(36.dp))
+            Box(Modifier.weight(1f),contentAlignment=Alignment.CenterEnd) { IslandText(item.app,11,LocalIslandAccent.current,lines=1) }
+        }
+        Spacer(Modifier.height(8.dp))
+        IslandText(item.text,14,Secondary,lines=2,modifier=Modifier.fillMaxWidth())
+    }
+}
+private fun activityColor(kind: ActivityKind)=when(kind) { ActivityKind.NAVIGATION -> Color(0xFF64D2FF);ActivityKind.RECORDING -> IslandRed;else -> Color(0xFFFF9F0A) }
+private fun activityIcon(kind: ActivityKind)=when(kind) { ActivityKind.NAVIGATION -> Icons.Rounded.Navigation;ActivityKind.RECORDING -> Icons.Rounded.Mic;ActivityKind.STOPWATCH -> Icons.Rounded.Timelapse;else -> Icons.Rounded.Timer }
+@Composable private fun ActivityValue(item: IslandItem, size: Int, modifier: Modifier=Modifier) {
+    val activity=item.activity ?: return
+    var now by remember(activity.baseElapsed) { mutableLongStateOf(android.os.SystemClock.elapsedRealtime()) }
+    LaunchedEffect(activity.baseElapsed) { if(activity.baseElapsed!=null) while(true) { now=android.os.SystemClock.elapsedRealtime();delay(250) } }
+    val ms=activity.baseElapsed?.let { if(activity.countdown)it-now else now-it }?.coerceAtLeast(0)
+    IslandText(if(ms!=null)clock(ms) else activity.value.ifBlank { item.text },size,activityColor(activity.kind),weight=FontWeight.SemiBold,lines=1,modifier=modifier)
+}
+@Composable private fun ActivityPill(item: IslandItem) {
+    val activity=item.activity ?: return
+    Row(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
+        Box(Modifier.width(44.dp)) { Icon(activityIcon(activity.kind),item.app,Modifier.size(21.dp),tint=activityColor(activity.kind)) }
+        Spacer(Modifier.width(36.dp))
+        ActivityValue(item,11,Modifier.width(44.dp))
+    }
+}
+@Composable private fun ActivityCard(item: IslandItem, modifier: Modifier) {
+    val activity=item.activity ?: return
+    Column(modifier,verticalArrangement=Arrangement.SpaceBetween) {
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=Alignment.CenterVertically) {
+            Icon(activityIcon(activity.kind),null,Modifier.size(30.dp),tint=activityColor(activity.kind))
+            Column(Modifier.weight(1f)) {
+                IslandText(item.title,if(activity.kind==ActivityKind.NAVIGATION)15 else 12,weight=FontWeight.SemiBold,lines=1)
+                if(activity.kind==ActivityKind.NAVIGATION) IslandText(item.text,13,activityColor(activity.kind),lines=1)
+                else ActivityValue(item,20)
+            }
+            if(activity.kind==ActivityKind.RECORDING)ColorWaveform(true)
+        }
+        if(item.actions.isNotEmpty())Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            item.actions.forEach { action -> ActionPill(action.title,icon=action.icon) { IslandController.action(action) } }
+        }
+    }
+}
+@Composable private fun SideIsland(item: IslandItem, modifier: Modifier) {
+    Box(modifier.size(37.dp).testTag("secondary-island").semantics { contentDescription="Switch to ${item.app}" }
+        .iosClickable { IslandController.swap() }.clip(CircleShape).background(Color.Black),contentAlignment=Alignment.Center) {
+        when {
+            item.call -> Icon(Icons.Rounded.Call,null,Modifier.size(19.dp),tint=IslandGreen)
+            item.activity!=null -> Icon(activityIcon(item.activity.kind),null,Modifier.size(20.dp),tint=activityColor(item.activity.kind))
+            item.largeIcon!=null -> Image(item.largeIcon.asImageBitmap(),null,Modifier.size(25.dp).clip(CircleShape),contentScale=ContentScale.Crop)
+            item.appIcon!=null -> Image(item.appIcon.asImageBitmap(),null,Modifier.size(24.dp).clip(CircleShape),contentScale=ContentScale.Crop)
+            else -> Icon(Icons.Rounded.MusicNote,null,Modifier.size(20.dp),tint=vividAccent(item))
         }
     }
 }
@@ -178,9 +281,14 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
         IslandEvent.LOW_BATTERY -> IslandRed
         IslandEvent.CHARGING -> IslandGreen
         IslandEvent.HEADPHONES -> Color(0xFF64D2FF)
+        IslandEvent.UNLOCK, IslandEvent.HOTSPOT -> IslandGreen
+        IslandEvent.DND -> Color(0xFF64D2FF)
         IslandEvent.RINGER -> if(item.title=="Silent") Color(0xFFFF2D55) else Color(0xFFFF9F0A)
         else -> LocalIslandAccent.current
     }
+    var unlocked by remember(item.key) { mutableStateOf(false) }
+    LaunchedEffect(item.key) { if(item.event==IslandEvent.UNLOCK) { delay(120);unlocked=true } }
+    val pop by animateFloatAsState(if(unlocked)1f else .86f,IslandMotion.handoff(),label="unlock confirmation")
     Row(Modifier.fillMaxSize().padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically) {
         IslandText(item.title,12,weight=FontWeight.SemiBold,lines=1,modifier=Modifier.weight(1f))
         Spacer(Modifier.width(36.dp))
@@ -190,7 +298,13 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             if(item.event==IslandEvent.CHARGING || item.event==IslandEvent.LOW_BATTERY) {
                 val level=item.text.filter { it.isDigit() }.toIntOrNull() ?: 0
                 BatteryIndicator(level,color,item.event==IslandEvent.CHARGING)
-            } else Icon(if(item.event==IslandEvent.HEADPHONES) Icons.Rounded.Headphones else if(item.title=="Silent") Icons.Rounded.NotificationsOff else Icons.Rounded.Notifications,null,Modifier.size(18.dp),tint=color)
+            } else Icon(when(item.event) {
+                IslandEvent.UNLOCK -> if(unlocked) Icons.Rounded.LockOpen else Icons.Rounded.Lock
+                IslandEvent.HOTSPOT -> Icons.Rounded.WifiTethering
+                IslandEvent.DND -> Icons.Rounded.Bedtime
+                IslandEvent.HEADPHONES -> Icons.Rounded.Headphones
+                else -> if(item.text=="Vibrate") Icons.Rounded.Vibration else if(item.title=="Silent") Icons.Rounded.NotificationsOff else Icons.Rounded.Notifications
+            },null,Modifier.size(18.dp).graphicsLayer { if(item.event==IslandEvent.UNLOCK) { scaleX=pop;scaleY=pop } },tint=color)
         }
     }
 }

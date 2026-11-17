@@ -20,5 +20,6 @@ data class IslandItem(
     val avatar: Bitmap? = null, val media: MediaInfo? = null, val code: String? = null,
     val accent: Int = 0xffa4d8b4.toInt(), val callStartedAtElapsed: Long? = null,
     val event: IslandEvent = IslandEvent.NOTIFICATION,
-    val callConnected: Boolean = false
+    val callConnected: Boolean = false,
+    val activity: LiveActivity? = null, val statusDurationMillis: Long = 3200
 )

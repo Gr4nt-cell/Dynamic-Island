@@ -12,17 +12,16 @@ import kotlinx.coroutines.*
 
 class IslandNotificationService : NotificationListenerService() {
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
-    private val systemEvents by lazy { SystemIslandEvents(this) }
     private val controllers=mutableMapOf<String,Pair<MediaController,MediaController.Callback>>()
     private val notifications=mutableMapOf<String,StatusBarNotification>()
     private val revisions=mutableMapOf<String,Long>()
     override fun onListenerConnected() {
         IslandController.listenerConnected.value=true
-        systemEvents.start()
+        IslandController.updateSystemMonitoring()
         // Restore persistent call/media state without replaying all old messages.
         activeNotifications?.forEach { receive(it,true) }
     }
-    override fun onListenerDisconnected() { IslandController.listenerConnected.value=false;systemEvents.stop();clear() }
+    override fun onListenerDisconnected() { IslandController.listenerConnected.value=false;IslandController.updateSystemMonitoring();clear();runCatching { requestRebind(android.content.ComponentName(this,IslandNotificationService::class.java)) } }
     override fun onNotificationPosted(sbn: StatusBarNotification) { receive(sbn,false) }
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         notifications.remove(sbn.key);revisions.remove(sbn.key)
@@ -34,8 +33,9 @@ class IslandNotificationService : NotificationListenerService() {
         if(sbn.packageName == packageName || n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
         val call=n.category == Notification.CATEGORY_CALL || n.extras.containsKey("android.callType")
         val media=n.category == Notification.CATEGORY_TRANSPORT || n.extras.containsKey(Notification.EXTRA_MEDIA_SESSION)
-        if(n.flags and Notification.FLAG_ONGOING_EVENT != 0 && !call && !media) return
-        if(n.category in listOf(Notification.CATEGORY_PROGRESS,Notification.CATEGORY_SERVICE) && !call && !media) return
+        val activity=if(call || media)null else activityKind(n,sbn.packageName)
+        if(n.flags and Notification.FLAG_ONGOING_EVENT != 0 && !call && !media && activity==null) return
+        if(n.category in listOf(Notification.CATEGORY_PROGRESS,Notification.CATEGORY_SERVICE) && !call && !media && activity==null) return
         notifications[sbn.key]=sbn
         val revision=(revisions[sbn.key] ?: 0)+1;revisions[sbn.key]=revision
         scope.launch {
@@ -51,6 +51,9 @@ class IslandNotificationService : NotificationListenerService() {
             IslandController.post(result,silent)
         }
     }
+    private fun activityKind(n: Notification,pkg: String): ActivityKind? = ActivityRules.kind(
+        n.flags and Notification.FLAG_ONGOING_EVENT!=0,n.category,n.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER),
+        n.extras.getBoolean("android.chronometerCountDown"),pkg,n.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty(),n.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty())
     @Suppress("DEPRECATION")
     private fun token(n: Notification): MediaSession.Token? = n.extras.getParcelable(Notification.EXTRA_MEDIA_SESSION)
     private fun attachMedia(sbn: StatusBarNotification) {
@@ -102,7 +105,10 @@ class IslandNotificationService : NotificationListenerService() {
             getSystemService(android.telecom.TelecomManager::class.java).defaultDialerPackage
                 ?.let { packageManager.getApplicationIcon(it).softwareBitmap() }
         }.getOrNull() ?: icon else icon
-        return IslandItem(sbn.key,pkg,app,title,text,callIcon,cover,n.contentIntent,actions,call,incoming,avatar,media,NotificationRules.code("$title $text"),accent,callStart,callConnected=connected)
+        val kind=if(call || media!=null)null else activityKind(n,pkg)
+        val countdown=e.getBoolean("android.chronometerCountDown")
+        val live=kind?.let { LiveActivity(it,if(e.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER)) ActivityRules.base(n.`when`,System.currentTimeMillis(),SystemClock.elapsedRealtime(),countdown) else null,countdown,ActivityRules.summary(text)) }
+        return IslandItem(sbn.key,pkg,app,title,text,callIcon,cover,n.contentIntent,actions,call,incoming,avatar,media,NotificationRules.code("$title $text"),accent,callStart,callConnected=connected,activity=live)
     }
     private fun Drawable.softwareBitmap(): Bitmap = toBitmap(128,128,Bitmap.Config.ARGB_8888).copy(Bitmap.Config.ARGB_8888,false)
     private fun dominant(bitmap: Bitmap?): Int {
@@ -118,5 +124,5 @@ class IslandNotificationService : NotificationListenerService() {
         return if(count==0) 0xffa4d8b4.toInt() else Color.rgb((red/count).toInt(),(green/count).toInt(),(blue/count).toInt())
     }
     private fun clear() { controllers.values.forEach { it.first.unregisterCallback(it.second) };notifications.keys.toList().forEach { IslandController.removed(it) };controllers.clear();notifications.clear();revisions.clear() }
-    override fun onDestroy() { systemEvents.stop();clear();scope.cancel();IslandController.listenerConnected.value=false;super.onDestroy() }
+    override fun onDestroy() { clear();scope.cancel();IslandController.listenerConnected.value=false;IslandController.updateSystemMonitoring();super.onDestroy() }
 }
