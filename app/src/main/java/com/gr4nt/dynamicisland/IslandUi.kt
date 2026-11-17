@@ -34,6 +34,24 @@ import kotlinx.coroutines.*
 import kotlin.math.roundToInt
 
 val IslandGreen=Color(0xFF34C759)
+val LocalAccent=compositionLocalOf { Color(0xFF0A84FF) }
+private val EqColors=listOf(Color(0xFFFF2D55),Color(0xFFFF9F0A),Color(0xFF30D158),Color(0xFF0A84FF))
+private val Vivid=listOf(Color(0xFF0A84FF),Color(0xFFBF5AF2),Color(0xFFFF2D55),Color(0xFFFF9F0A),Color(0xFF30D158),Color(0xFF64D2FF))
+/** Vivid accent from the notification art; falls back to a stable colour per app. */
+private fun vibrant(bitmap: Bitmap?, seed: String): Color {
+    val fallback=Vivid[(seed.hashCode() and 0x7fffffff)%Vivid.size]
+    if(bitmap==null) return fallback
+    return runCatching {
+        val small=Bitmap.createScaledBitmap(bitmap.copy(Bitmap.Config.ARGB_8888,false),8,8,true)
+        var bestScore=0f;var best=fallback;val hsv=FloatArray(3)
+        for(x in 0 until 8) for(y in 0 until 8) {
+            val px=small.getPixel(x,y); if(android.graphics.Color.alpha(px)<128) continue
+            android.graphics.Color.colorToHSV(px,hsv); val score=hsv[1]*hsv[2]
+            if(score>bestScore) { bestScore=score;best=Color(android.graphics.Color.HSVToColor(floatArrayOf(hsv[0],hsv[1].coerceAtLeast(.6f),1f))) }
+        }
+        if(bestScore<.15f) fallback else best
+    }.getOrDefault(fallback)
+}
 val IslandRed=Color(0xFFFF3B30)
 private val ReplyVector=ImageVector.Builder("Reply",24.dp,24.dp,24f,24f).apply {
     path(fill=null,stroke=SolidColor(Color.White),strokeLineWidth=1.85f,strokeLineCap=StrokeCap.Round,strokeLineJoin=StrokeJoin.Round) {
@@ -50,7 +68,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
 @Composable fun IslandOverlay(state: IslandState, layout: IslandLayout) {
     val originalDensity=LocalDensity.current
     val scaled=Density(originalDensity.density*layout.size/100f,originalDensity.fontScale)
-    CompositionLocalProvider(LocalDensity provides scaled) { OverlayContent(state,layout) }
+    CompositionLocalProvider(LocalDensity provides scaled,LocalGlassPalette provides GlassPalette(true)) { OverlayContent(state,layout) }
 }
 @Composable private fun OverlayContent(state: IslandState, layout: IslandLayout) {
     var retained by remember { mutableStateOf(state.item) }
@@ -59,7 +77,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     val reveal=remember { Animatable(0f) }
     val scope=rememberCoroutineScope()
     LaunchedEffect(state.item?.key) {
-        if(state.item != null) { retained=state.item;reveal.snapTo(0f);launch { reveal.animateTo(1f,tween(280,easing=IosEase)) };opening.animateTo(1f,spring(.78f,420f)) }
+        if(state.item != null) { retained=state.item;reveal.snapTo(0f);launch { reveal.animateTo(1f,tween(280,easing=IosEase)) };opening.animateTo(1f,spring(.58f,330f)) }
         else { opening.animateTo(0f,tween(400,easing=CubicBezierEasing(.4f,0f,.2f,1f)));retained=null }
     }
     val item=state.item ?: retained
@@ -68,30 +86,32 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     val pillWidth=if(item.call)144.dp else 108.dp
     BoxWithConstraints(Modifier.fillMaxWidth(),contentAlignment=Alignment.TopCenter) {
         val cardWidth=maxWidth
-        val shellWidth by animateDpAsState(if(compact)pillWidth else cardWidth,spring(.8f,Spring.StiffnessMediumLow),label="shell width")
+        val shellWidth by animateDpAsState(if(compact)pillWidth else cardWidth,spring(.62f,340f),label="shell width")
         val widthProgress=if(cardWidth>pillWidth) ((shellWidth-pillWidth)/(cardWidth-pillWidth)).coerceIn(0f,1f) else 1f
         val corners=RoundedCornerShape(layout.topLeft.dp,layout.topRight.dp,layout.bottomRight.dp,layout.bottomLeft.dp)
         val contentAlpha=minOf(((opening.value-.4f)/.6f).coerceIn(0f,1f),reveal.value)
         Box(Modifier.width(shellWidth).graphicsLayer {
             transformOrigin=TransformOrigin(.5f,0f)
-            scaleX=.26f+.74f*opening.value
-            scaleY=.15f+.85f*opening.value
+            scaleX=.22f+.78f*opening.value
+            scaleY=.12f+.88f*opening.value
             alpha=(opening.value*4).coerceIn(0f,1f)
             translationY=drag.value-6.dp.toPx()*(1-opening.value)
-        }.softGlass(corners,overlay=true)
-            .animateContentSize(spring(.8f,420f))
+        }.softGlass(corners,overlay=true,black=true)
+            .animateContentSize(spring(.66f,360f))
             .draggable(rememberDraggableState { delta -> scope.launch { drag.snapTo((drag.value+delta).coerceAtMost(0f)) } },Orientation.Vertical,
                 onDragStopped={ if(drag.value < -40f) { IslandController.dismiss();drag.snapTo(0f) } else drag.animateTo(0f,spring(.7f,500f)) })
             .clickable(enabled=!state.replying) { IslandController.tap() }
         ) {
             // Fake frost uses notification art, never a rectangular live backdrop blur.
             val art=if(item.call) item.avatar else item.largeIcon ?: item.appIcon
+            val accent=remember(item.key) { vibrant(item.largeIcon ?: item.avatar ?: item.appIcon,item.app) }
+            val glow by animateFloatAsState(if(compact)0f else 1f,tween(500),label="glow")
+            Box(Modifier.matchParentSize().graphicsLayer { alpha=glow*contentAlpha }.drawBehind { drawRect(Brush.radialGradient(listOf(accent.copy(alpha=.4f),Color.Transparent),center=androidx.compose.ui.geometry.Offset(size.width/2,0f),radius=size.width*.75f)) })
             if(art!=null && !compact) {
                 val palette=LocalGlassPalette.current
                 Image(art.asImageBitmap(),null,Modifier.matchParentSize().graphicsLayer { scaleX=1.3f;scaleY=1.3f;alpha=if(palette.dark).12f else .09f }.blur(38.dp,BlurredEdgeTreatment.Unbounded),contentScale=ContentScale.Crop)
             }
-            LensMask(Modifier.matchParentSize(),layout,compact)
-            Box(Modifier.graphicsLayer { alpha=contentAlpha;translationY=10.dp.toPx()*(1-contentAlpha);scaleX=.92f+.08f*contentAlpha;scaleY=scaleX }) {
+            CompositionLocalProvider(LocalAccent provides accent) { Box(Modifier.blur((16f*(1f-contentAlpha)).dp,BlurredEdgeTreatment.Unbounded).graphicsLayer { alpha=contentAlpha;translationY=8.dp.toPx()*(1-contentAlpha);scaleX=.86f+.14f*contentAlpha;scaleY=scaleX }) {
                 if(item.media!=null && !item.call) {
                     // Each state measures at its final width, even while the shell is narrow.
                     Box(contentAlignment=Alignment.TopCenter) {
@@ -111,7 +131,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
                     Spacer(Modifier.height(layout.bottomSpace.dp+8.dp))
                     if(layout.countdown && !state.replying) Countdown(state.generation,layout.seconds)
                 }
-            }
+            } }
         }
     }
 }
@@ -121,12 +141,12 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     val rect=context.getSystemService(android.view.WindowManager::class.java).maximumWindowMetrics.windowInsets.displayCutout?.boundingRectTop
     val physicalDensity=context.resources.displayMetrics.density
     val cameraHeight=(rect?.width()?.div(physicalDensity) ?: 26f)/(layout.size/100f)
-    Spacer(Modifier.height(cameraHeight.dp+layout.cameraSpace.dp+layout.gap.dp))
+    Spacer(Modifier.height((cameraHeight*.78f+layout.cameraSpace/2f+layout.gap).coerceAtLeast(0f).dp))
 }
 @Composable private fun Countdown(generation: Long, seconds: Float) {
     val remaining=remember { Animatable(1f) }
     LaunchedEffect(generation,seconds) { remaining.snapTo(1f);remaining.animateTo(0f,tween((seconds*1000).toInt(),easing=LinearEasing)) }
-    Box(Modifier.fillMaxWidth().height(2.dp).background(LocalGlassPalette.current.text.copy(alpha=.08f))) { Box(Modifier.fillMaxWidth(remaining.value).fillMaxHeight().background(LocalGlassPalette.current.text.copy(alpha=.4f))) }
+    Box(Modifier.fillMaxWidth().height(2.dp).background(LocalGlassPalette.current.text.copy(alpha=.08f))) { Box(Modifier.fillMaxWidth(remaining.value).fillMaxHeight().background(LocalAccent.current)) }
 }
 @Composable fun IslandText(text: String, size: Int=14, color: Color=LocalGlassPalette.current.text, weight: FontWeight=FontWeight.Medium, lines: Int=2, modifier: Modifier=Modifier) {
     Text(text,modifier,color=color,fontSize=size.sp,fontWeight=weight,letterSpacing=(-.3).sp,maxLines=lines,overflow=TextOverflow.Ellipsis,lineHeight=(size+4).sp)
@@ -138,12 +158,12 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
 @Composable private fun MessageCard(item: IslandItem, replying: Boolean, modifier: Modifier) {
     Column(modifier,verticalArrangement=Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-            Art(item.appIcon,16.dp);IslandText(item.app,12,Secondary,lines=1,modifier=Modifier.weight(1f));IslandText("now",12,Secondary)
+            Art(item.appIcon,16.dp);IslandText(item.app,12,LocalAccent.current,FontWeight.SemiBold,lines=1,modifier=Modifier.weight(1f));IslandText("now",12,Secondary)
         }
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
                 IslandText(item.title,17,weight=FontWeight.SemiBold)
-                if(item.code!=null) Text(item.code,color=SettingsAccent,fontSize=28.sp,fontWeight=FontWeight.Bold,letterSpacing=3.sp)
+                if(item.code!=null) Text(item.code,color=LocalAccent.current,fontSize=28.sp,fontWeight=FontWeight.Bold,letterSpacing=3.sp)
                 else IslandText(item.text,14,Secondary)
             }
             if(item.largeIcon!=null && item.code==null) Image(item.largeIcon.asImageBitmap(),null,Modifier.size(44.dp).clip(CircleShape),contentScale=ContentScale.Crop)
@@ -154,7 +174,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             item.actions.forEach { action ->
                 val kind=if(action.reply) "reply" else action.kind
                 val vector=when(kind) { "reply"->ReplyVector;"read"->ReadVector;"delete"->Icons.Rounded.DeleteOutline;"archive"->Icons.Rounded.Archive;else->null }
-                if(kind=="reply" || kind=="read") RoundButton(action.title.ifBlank { kind },vector ?: ReplyVector,Color.Transparent,38.dp) { IslandController.action(action) }
+                if(kind=="reply" || kind=="read") RoundButton(action.title.ifBlank { kind },vector ?: ReplyVector,if(kind=="reply")Color(0xFF0A84FF) else Color(0xFFBF5AF2),38.dp) { IslandController.action(action) }
                 else ActionPill(action.title,vector,action.icon) { IslandController.action(action) }
             }
         }
@@ -166,7 +186,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     LaunchedEffect(item.key) { delay(150);requester.requestFocus();keyboard?.show() }
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         BasicTextField(reply,{reply=it.take(4000)},Modifier.weight(1f).softGlass(RoundedCornerShape(18.dp)).padding(12.dp).focusRequester(requester),
-            textStyle=TextStyle(color=LocalGlassPalette.current.text,fontSize=15.sp),cursorBrush=SolidColor(SettingsAccent),maxLines=4,
+            textStyle=TextStyle(color=LocalGlassPalette.current.text,fontSize=15.sp),cursorBrush=SolidColor(LocalAccent.current),maxLines=4,
             keyboardOptions=KeyboardOptions(imeAction=ImeAction.Send),keyboardActions=KeyboardActions(onSend={IslandController.sendReply(reply)}),
             decorationBox={ field -> if(reply.isEmpty()) IslandText("Reply…",14,Secondary);field() })
         RoundButton("Send reply",Icons.AutoMirrored.Rounded.Send,IslandGreen,38.dp) { IslandController.sendReply(reply) }
@@ -181,12 +201,15 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
         val side=((maxWidth-42.dp)/2).coerceAtLeast(80.dp)
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
             Row(Modifier.width(side),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                if(item.avatar!=null) Image(item.avatar.asImageBitmap(),null,Modifier.size(42.dp).clip(CircleShape),contentScale=ContentScale.Crop)
-                else Box(Modifier.size(42.dp).softGlass(CircleShape),contentAlignment=Alignment.Center) {
+                val pulse=rememberInfiniteTransition(label="ring").animateFloat(1f,1.14f,infiniteRepeatable(tween(900,easing=FastOutSlowInEasing),RepeatMode.Reverse),label="pulse")
+                val ring=Brush.sweepGradient(listOf(Color(0xFF30D158),Color(0xFF0A84FF),Color(0xFFBF5AF2),Color(0xFFFF2D55),Color(0xFF30D158)))
+                Box(Modifier.size(46.dp).graphicsLayer { if(item.incoming){scaleX=pulse.value;scaleY=pulse.value} }.border(2.dp,ring,CircleShape).padding(3.dp),contentAlignment=Alignment.Center) {
+                if(item.avatar!=null) Image(item.avatar.asImageBitmap(),null,Modifier.fillMaxSize().clip(CircleShape),contentScale=ContentScale.Crop)
+                else Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF5E5CE6),Color(0xFFBF5AF2))),CircleShape),contentAlignment=Alignment.Center) {
                     val initial=item.title.trim().firstOrNull()?.takeIf { it.isLetter() }
-                    if(initial!=null) IslandText(initial.uppercase(),20,weight=FontWeight.SemiBold) else Icon(Icons.Rounded.Person,null,tint=LocalGlassPalette.current.text)
-                }
-                Column(Modifier.weight(1f)) { IslandText(item.title,17,weight=FontWeight.SemiBold,lines=1);IslandText(if(item.incoming) "Incoming Call" else "Ongoing Call",13,Secondary,lines=2) }
+                    if(initial!=null) IslandText(initial.uppercase(),20,weight=FontWeight.SemiBold) else Icon(Icons.Rounded.Person,null,tint=Color.White)
+                } }
+                Column(Modifier.weight(1f)) { IslandText(item.title,17,weight=FontWeight.SemiBold,lines=1);IslandText(if(item.incoming) "Incoming Call" else "Ongoing Call",13,if(item.incoming)IslandGreen else Secondary,lines=2) }
             }
             Row(Modifier.width(side),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
                 if(decline!=null) RoundButton(if(item.incoming) "Decline call" else "Hang up",Icons.Rounded.CallEnd,IslandRed) { IslandController.action(decline) }
@@ -198,14 +221,14 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
 @Composable private fun MusicPill(item: IslandItem, modifier: Modifier) {
     Row(modifier.height(34.dp).padding(horizontal=9.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
         if(item.largeIcon!=null) Image(item.largeIcon.asImageBitmap(),null,Modifier.size(22.dp,15.dp).clip(RoundedCornerShape(3.dp)),contentScale=ContentScale.Crop)
-        else Icon(Icons.Rounded.MusicNote,null,Modifier.size(18.dp),tint=SettingsAccent)
+        else Icon(Icons.Rounded.MusicNote,null,Modifier.size(18.dp),tint=LocalAccent.current)
         // This transparent middle section sits directly over the physical lens.
         Spacer(Modifier.width(30.dp))
         val transition=rememberInfiniteTransition(label="levels")
         Row(horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically) {
             repeat(4) { i ->
                 val h by transition.animateFloat(3f+(i%2)*3,14f-(i%3)*2,infiniteRepeatable(tween(350+i*80,easing=LinearEasing),RepeatMode.Reverse),label="level $i")
-                Box(Modifier.width(2.5.dp).height(if(item.media?.playing==true) h.dp else 3.dp).clip(CircleShape).background(SettingsAccent))
+                Box(Modifier.width(2.5.dp).height(if(item.media?.playing==true) h.dp else 3.dp).clip(CircleShape).background(EqColors[i%EqColors.size]))
             }
         }
     }
@@ -230,7 +253,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             }
         }
         Box(Modifier.fillMaxWidth().height(3.dp).clip(CircleShape).background(LocalGlassPalette.current.track)) {
-            Box(Modifier.fillMaxWidth(if(media.duration>0) (position.toFloat()/media.duration).coerceIn(0f,1f) else 0f).fillMaxHeight().background(SettingsAccent))
+            Box(Modifier.fillMaxWidth(if(media.duration>0) (position.toFloat()/media.duration).coerceIn(0f,1f) else 0f).fillMaxHeight().background(Brush.horizontalGradient(listOf(LocalAccent.current,Color(0xFFFF2D55)))))
         }
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) { IslandText(clock(position),11,Secondary);IslandText(clock(media.duration),11,Secondary) }
     }
@@ -242,7 +265,7 @@ private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);ret
 }
 @Composable private fun NotificationIconButton(a: IslandAction, size: Dp, click: ()->Unit) {
     val b=iconBitmap(a.icon)
-    Box(Modifier.size(size).iosClickable(pressedScale=.88f,onClick=click).softGlass(CircleShape),contentAlignment=Alignment.Center) {
+    Box(Modifier.size(size).iosClickable(pressedScale=.88f,onClick=click).softGlass(CircleShape,tint=LocalAccent.current.copy(alpha=.5f)),contentAlignment=Alignment.Center) {
         if(b!=null) Image(b.asImageBitmap(),a.title,Modifier.size(size*.65f),colorFilter=ColorFilter.tint(LocalGlassPalette.current.text))
         else Icon(if(a.title.contains("pause",true))Icons.Rounded.Pause else if(a.title.contains("next",true))Icons.Rounded.SkipNext else if(a.title.contains("prev",true))Icons.Rounded.SkipPrevious else Icons.Rounded.PlayArrow,a.title,tint=LocalGlassPalette.current.text)
     }
@@ -259,20 +282,6 @@ private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);ret
         if(vector!=null) Icon(vector,null,Modifier.size(18.dp),tint=LocalGlassPalette.current.text)
         else if(b!=null) Image(b.asImageBitmap(),null,Modifier.size(18.dp),colorFilter=ColorFilter.tint(LocalGlassPalette.current.text))
         IslandText(label,14,weight=FontWeight.SemiBold,lines=1)
-    }
-}
-
-@Composable private fun LensMask(modifier: Modifier, layout: IslandLayout, compact: Boolean) {
-    val context=LocalContext.current
-    val actualDensity=context.resources.displayMetrics.density
-    val rect=context.getSystemService(android.view.WindowManager::class.java).maximumWindowMetrics.windowInsets.displayCutout?.boundingRectTop
-    val diameter=rect?.width()?.toFloat() ?: 24f*actualDensity
-    // Cutout bounds may include generous OEM clearance around the physical lens.
-    val maskDiameter=diameter.coerceAtMost(28f*actualDensity)
-    val estimatedTop=rect?.let { NotificationRules.cameraTop(it.top,it.bottom,it.width()).toFloat() } ?: 10f*actualDensity
-    val lensY=if(compact) estimatedTop+diameter/2-10f*actualDensity else diameter/2+layout.gap*actualDensity
-    Canvas(modifier) {
-        drawCircle(Color.Black,maskDiameter/2+1.5f*actualDensity,center=androidx.compose.ui.geometry.Offset(size.width/2,lensY))
     }
 }
 
