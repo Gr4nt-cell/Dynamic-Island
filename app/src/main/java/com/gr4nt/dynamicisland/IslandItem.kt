@@ -10,7 +10,7 @@ data class IslandAction(val title: String, val intent: PendingIntent, val icon: 
     val reply get() = inputs.any { it.allowFreeFormInput }
     val kind get() = NotificationRules.actionKind(title)
 }
-data class MediaInfo(val controller: MediaController, val duration: Long, val position: Long, val updatedAt: Long, val speed: Float, val playing: Boolean) {
+data class MediaInfo(val controller: MediaController?, val duration: Long, val position: Long, val updatedAt: Long, val speed: Float, val playing: Boolean) {
     fun elapsed(): Long = (position + if(playing) ((SystemClock.elapsedRealtime()-updatedAt)*speed).toLong() else 0).coerceIn(0,duration.coerceAtLeast(0))
 }
 data class IslandItem(

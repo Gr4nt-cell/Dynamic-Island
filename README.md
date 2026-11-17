@@ -30,14 +30,13 @@ OTP extraction requires code/OTP/verification/PIN/passcode context plus 4–8 di
 
 ## Build
 
-Use JDK 17, Gradle 8.13, Android SDK 35. CI installs these, runs unit tests, Android lint and release builds, then uploads APK, AAB, mapping, lint report and a source ZIP (with generated Gradle wrapper). It publishes downloadable files under Releases.
+Use JDK 17, Gradle 8.13, Android SDK 35. CI installs these, runs unit tests, Android lint and release builds, then uploads APK, AAB, mapping, lint report and a source ZIP (including Gradle wrapper). It publishes downloadable files under Releases.
 
 ```sh
-gradle wrapper --gradle-version 8.13
 ./gradlew testReleaseUnitTest lintRelease assembleRelease bundleRelease
 ```
 
-The release is signed with the CI machine's debug key for personal use. Different runners may generate different keys: uninstall an old install if signatures differ. Use your own stable signing key before distributing updates or submitting to a store. File size is measured from the actual build; 6 MB is a goal, not a guarantee.
+The release is signed with the bundled public development key for personal use, so subsequent builds can update the same install. This is deliberately a shared debug key; use your own private signing key before store distribution. File size is measured from the actual build; 6 MB is a goal, not a guarantee.
 
 ## Design
 
@@ -49,4 +48,4 @@ References: [Android accessibility overlays](https://developer.android.com/refer
 
 ## Verification limits
 
-**Not tested on a real device:** Xiaomi 17/HyperOS camera cutout and island alignment, touch/IME behaviour in an accessibility overlay, real app call actions, inline reply delivery/echoes, music handoff and vendor action icons, root permission/commands/restore, redacted OTP recovery, landscape and foldable layouts, battery/background service survival. Unit tests cover camera top estimation, OTP boundaries/context and action mapping. CI validates compilation, lint and minified packaging; it is not device validation.
+**Not tested on a real device:** Xiaomi 17/HyperOS camera cutout and island alignment, touch/IME behaviour in an accessibility overlay, real app call actions, inline reply delivery/echoes, music handoff and vendor action icons, root permission/commands/restore, redacted OTP recovery, landscape and foldable layouts, battery/background service survival. Unit tests cover camera top estimation, OTP boundaries/context and action mapping, duplicate timing and reply-echo suppression. CI validates compilation, lint and minified packaging; it is not device validation.

@@ -14,6 +14,12 @@ android {
         versionName = "1.0"
         ndk { abiFilters += "arm64-v8a" }
     }
+    signingConfigs.getByName("debug") {
+        storeFile = rootProject.file("signing/debug.keystore")
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+    }
     buildTypes {
         release {
             isMinifyEnabled = true

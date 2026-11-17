@@ -218,9 +218,9 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             if(controls.isNotEmpty()) controls.forEachIndexed { i,a ->
                 NotificationIconButton(a,if(i==1)48.dp else 38.dp) { IslandController.action(a) }
             } else {
-                RoundButton("Previous",Icons.Rounded.SkipPrevious,Color.Transparent,38.dp) { media.controller.transportControls.skipToPrevious() }
-                RoundButton(if(media.playing)"Pause" else "Play",if(media.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,Color.Transparent,48.dp) { if(media.playing)media.controller.transportControls.pause() else media.controller.transportControls.play() }
-                RoundButton("Next",Icons.Rounded.SkipNext,Color.Transparent,38.dp) { media.controller.transportControls.skipToNext() }
+                RoundButton("Previous",Icons.Rounded.SkipPrevious,Color.Transparent,38.dp) { media.controller?.transportControls?.skipToPrevious() }
+                RoundButton(if(media.playing)"Pause" else "Play",if(media.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,Color.Transparent,48.dp) { if(media.playing)media.controller?.transportControls?.pause() else media.controller?.transportControls?.play() }
+                RoundButton("Next",Icons.Rounded.SkipNext,Color.Transparent,38.dp) { media.controller?.transportControls?.skipToNext() }
             }
         }
         Box(Modifier.fillMaxWidth().height(3.dp).clip(CircleShape).background(Color.White.copy(alpha=.18f))) {

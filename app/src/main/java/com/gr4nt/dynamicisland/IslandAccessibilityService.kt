@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.*
 import androidx.lifecycle.*
 import androidx.savedstate.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 
 class OverlayOwners : LifecycleOwner, SavedStateRegistryOwner, ViewModelStoreOwner {
     private val registry=LifecycleRegistry(this)
@@ -34,6 +35,7 @@ class IslandAccessibilityService : AccessibilityService() {
         IslandController.connected.value=true
         IslandController.setFocusable={ focus -> focused=focus;updateWindow() }
         scope.launch { IslandController.settings.flow.collect { rebuild() } }
+        scope.launch { IslandController.state.map { Triple(it.item?.key, it.expanded, it.item != null) }.distinctUntilChanged().collect { updateWindow() } }
     }
     private fun makeParams(): WindowManager.LayoutParams {
         val l=IslandController.settings.flow.value
@@ -50,7 +52,8 @@ class IslandAccessibilityService : AccessibilityService() {
         ).apply {
             gravity=Gravity.TOP or Gravity.CENTER_HORIZONTAL
             x=((l.left-l.right)*density/2).toInt()
-            y=(cameraTop-l.gap*density).toInt()
+            y=if(IslandController.state.value.item?.media != null && !IslandController.state.value.expanded) (10*density).toInt() else (cameraTop-l.gap*density).toInt()
+            if(IslandController.state.value.item == null) flags=flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             softInputMode=WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
             title="Dynamic Island"

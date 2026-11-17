@@ -20,9 +20,7 @@ object IslandController {
     private val calls = LinkedHashMap<String, IslandItem>()
     private val hiddenMedia = mutableSetOf<String>()
     private var timer: Job? = null
-    private val ignoredKeys = mutableMapOf<String,Long>()
-    private val ignoredPackages = mutableMapOf<String,Long>()
-    private val seen = mutableMapOf<String,Pair<String,Long>>()
+    private val gate=NotificationGate()
     var setFocusable: (Boolean) -> Unit = {}
     fun init(c: Context) {
         context = c.applicationContext; settings = LayoutStore(context,scope); root = RootExtras(context)
@@ -31,8 +29,7 @@ object IslandController {
         val layout = settings.flow.value
         if (!layout.allApps && item.pkg !in layout.allowList) return
         val now = SystemClock.elapsedRealtime()
-        ignoredKeys.entries.removeAll { it.value <= now }; ignoredPackages.entries.removeAll { it.value <= now }
-        if ((ignoredKeys[item.key] ?: 0) > now || (ignoredPackages[item.pkg] ?: 0) > now) return
+        if(gate.blocked(item.key,item.pkg,now)) return
         if (item.media != null) {
             val previous = media
             if(item.media.playing && (previous?.key != item.key || previous.media?.playing != true)) hiddenMedia.remove(item.key)
@@ -52,11 +49,7 @@ object IslandController {
         if(silent) return
         // Keep the focused reply intact when unrelated notifications arrive.
         if(state.value.replying || state.value.item?.call == true) return
-        val signature = item.title + "\u0000" + item.text
-        val old = seen[item.pkg]
-        if(old?.first == signature && now-old.second < 2500) return
-        seen.entries.removeAll { now-it.value.second > 10000 }
-        seen[item.pkg] = signature to now
+        if(gate.duplicate(item.pkg,item.title,item.text,now)) return
         display(item,true)
     }
     private fun display(item: IslandItem, expanded: Boolean) {
@@ -109,10 +102,10 @@ object IslandController {
         RemoteInput.addResultsToIntent(action.inputs.toTypedArray(),intent,result)
         RemoteInput.setResultsSource(intent,RemoteInput.SOURCE_FREE_FORM_INPUT)
         // Install suppression before the app can publish its own reply echo.
-        val now=SystemClock.elapsedRealtime();ignoredKeys[item.key]=now+10000;ignoredPackages[item.pkg]=now+2500
+        val now=SystemClock.elapsedRealtime();gate.suppressReply(item.key,item.pkg,now)
         try { action.intent.send(context,0,intent); collapse() }
         catch(_: android.app.PendingIntent.CanceledException) {
-            ignoredKeys.remove(item.key);ignoredPackages.remove(item.pkg);toast("Reply action is no longer available")
+            gate.undoReply(item.key,item.pkg);toast("Reply action is no longer available")
         }
     }
     fun action(action: IslandAction) { if(action.reply) reply() else { sendIntent { action.intent.send() }; if(state.value.item?.media == null) collapse() } }

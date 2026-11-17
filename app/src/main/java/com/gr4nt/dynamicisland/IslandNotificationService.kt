@@ -59,7 +59,7 @@ class IslandNotificationService : NotificationListenerService() {
         val callback=object: MediaController.Callback() {
             override fun onPlaybackStateChanged(state: PlaybackState?) { notifications[sbn.key]?.let { receive(it,true) } }
             override fun onMetadataChanged(metadata: MediaMetadata?) { notifications[sbn.key]?.let { receive(it,true) } }
-            override fun onSessionDestroyed() { controllers.remove(sbn.key)?.let { it.first.unregisterCallback(it.second) };IslandController.removed(sbn.key) }
+            override fun onSessionDestroyed() { notifications.remove(sbn.key);revisions.remove(sbn.key);controllers.remove(sbn.key)?.let { it.first.unregisterCallback(it.second) };IslandController.removed(sbn.key) }
         }
         controller.registerCallback(callback,Handler(mainLooper));controllers[sbn.key]=controller to callback
     }
@@ -79,7 +79,8 @@ class IslandNotificationService : NotificationListenerService() {
         if(call && !caller?.name.isNullOrBlank()) title=caller?.name.toString()
         val controller=token(n)?.let { runCatching { MediaController(this,it) }.getOrNull() }
         val metadata=controller?.metadata;val playback=controller?.playbackState
-        val media=controller?.let { MediaInfo(it,metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0,playback?.position?.coerceAtLeast(0) ?: 0,playback?.lastPositionUpdateTime ?: SystemClock.elapsedRealtime(),playback?.playbackSpeed ?: 1f,playback?.state == PlaybackState.STATE_PLAYING) }
+        val isMedia = n.category == Notification.CATEGORY_TRANSPORT || token(n) != null
+        val media=if(isMedia) MediaInfo(controller,metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0,playback?.position?.coerceAtLeast(0) ?: 0,playback?.lastPositionUpdateTime ?: SystemClock.elapsedRealtime(),playback?.playbackSpeed ?: 1f,(playback?.state == PlaybackState.STATE_PLAYING || (playback == null && n.flags and Notification.FLAG_ONGOING_EVENT != 0))) else null
         if(media != null) {
             title=metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: title
             text=metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: text
