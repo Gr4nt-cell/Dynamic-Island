@@ -267,10 +267,12 @@ private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);ret
     val actualDensity=context.resources.displayMetrics.density
     val rect=context.getSystemService(android.view.WindowManager::class.java).maximumWindowMetrics.windowInsets.displayCutout?.boundingRectTop
     val diameter=rect?.width()?.toFloat() ?: 24f*actualDensity
+    // Cutout bounds may include generous OEM clearance around the physical lens.
+    val maskDiameter=diameter.coerceAtMost(28f*actualDensity)
     val estimatedTop=rect?.let { NotificationRules.cameraTop(it.top,it.bottom,it.width()).toFloat() } ?: 10f*actualDensity
     val lensY=if(compact) estimatedTop+diameter/2-10f*actualDensity else diameter/2+layout.gap*actualDensity
     Canvas(modifier) {
-        drawCircle(Color.Black,diameter/2+1.5f*actualDensity,center=androidx.compose.ui.geometry.Offset(size.width/2,lensY))
+        drawCircle(Color.Black,maskDiameter/2+1.5f*actualDensity,center=androidx.compose.ui.geometry.Offset(size.width/2,lensY))
     }
 }
 
