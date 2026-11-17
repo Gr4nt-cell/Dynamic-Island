@@ -160,7 +160,11 @@ class GlassUiTest {
         compose.runOnIdle { expanded.value=true }
         repeat(30) { compose.mainClock.advanceTimeBy(16) }
         compose.mainClock.advanceTimeBy(1000)
-        compose.onNodeWithText("A little closer").assertIsDisplayed();capture("music-card-light")
+        compose.onNodeWithText("A little closer").assertIsDisplayed()
+        val shell=compose.onNodeWithTag("island-shell").fetchSemanticsNode().boundsInRoot
+        val play=compose.onNodeWithContentDescription("Pause").fetchSemanticsNode().boundsInRoot
+        assertEquals(shell.center.x,play.center.x,1f)
+        capture("music-card-light")
         compose.runOnIdle { expanded.value=false };compose.mainClock.advanceTimeBy(1200)
         capture("music-pill-after-collapse")
     }

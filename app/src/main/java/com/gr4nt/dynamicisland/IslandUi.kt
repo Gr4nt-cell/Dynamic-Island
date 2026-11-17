@@ -298,11 +298,15 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
                 IslandText(if(media.duration>0) "−"+clock((media.duration-position).coerceAtLeast(0)) else "",11,accent)
             }
         }
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
-            MediaControl(Icons.Rounded.FastRewind,"Previous",42.dp,accent) { performMedia(item,"prev") }
-            MediaControl(if(media.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(media.playing)"Pause" else "Play",48.dp,accent) { performMedia(item,"toggle") }
-            MediaControl(Icons.Rounded.FastForward,"Next",42.dp,accent) { performMedia(item,"next") }
-            MediaControl(Icons.Rounded.Airplay,"Audio output",32.dp,accent) { IslandController.openAudioOutput() }
+        Box(Modifier.fillMaxWidth().height(48.dp)) {
+            Row(Modifier.width(204.dp).align(Alignment.Center),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+                MediaControl(Icons.Rounded.FastRewind,"Previous",42.dp,accent) { performMedia(item,"prev") }
+                MediaControl(if(media.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(media.playing)"Pause" else "Play",48.dp,accent) { performMedia(item,"toggle") }
+                MediaControl(Icons.Rounded.FastForward,"Next",42.dp,accent) { performMedia(item,"next") }
+            }
+            Box(Modifier.align(Alignment.CenterEnd)) {
+                MediaControl(Icons.Rounded.Airplay,"Audio output",32.dp,accent) { IslandController.openAudioOutput() }
+            }
         }
     }
 }
