@@ -54,13 +54,8 @@ class MainActivity : ComponentActivity() {
         IslandText("DYNAMIC ISLAND",11,SettingsAccent,FontWeight.Bold,lines=1)
         IslandText("Around your camera.",30,weight=FontWeight.Bold,lines=2,modifier=Modifier.iosReveal())
         IslandText("Your notifications. One quiet place.",14,Secondary)
-        Box(Modifier.fillMaxWidth().height(164.dp).iosReveal(50).softGlass(RoundedCornerShape(32.dp)).padding(12.dp),contentAlignment=Alignment.TopCenter) {
-            Column(Modifier.fillMaxWidth().softGlass(RoundedCornerShape(36.dp),overlay=true).padding(horizontal=20.dp,vertical=15.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
-                Box(Modifier.align(Alignment.CenterHorizontally).size(11.dp).clip(CircleShape).background(Color.Black))
-                IslandText("Messages · now",12,Secondary)
-                IslandText("Ama",17,weight=FontWeight.SemiBold)
-                IslandText("See you in a few minutes.",14,Secondary)
-            }
+        Box(Modifier.fillMaxWidth().height(122.dp).iosReveal(50),contentAlignment=Alignment.TopCenter) {
+            IslandOverlay(IslandState(IslandItem("settings-preview","preview","Messages","Ama","See you in a few minutes.")),IslandLayout(size=90f))
         }
         GlassButton("Preview island",Modifier.fillMaxWidth().iosReveal(80),Icons.Rounded.PlayArrow) {
             if(connected) IslandController.preview() else localPreview=true

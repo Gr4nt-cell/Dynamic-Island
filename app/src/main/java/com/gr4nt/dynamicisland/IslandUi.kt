@@ -100,7 +100,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
         Box(Modifier.width(shellWidth).height(height.value.dp.coerceAtLeast(1.dp))
             .testTag("island-shell").semantics { contentDescription="Island ${tier.name.lowercase()}" }
             .graphicsLayer { alpha=opacity.value;translationY=drag.value }
-            .softGlass(shape,overlay=true)
+            .clip(shape).background(Color.Black)
             .draggable(rememberDraggableState { delta -> scope.launch { drag.snapTo((drag.value+delta).coerceAtMost(0f)) } },Orientation.Vertical,
                 onDragStopped={ if(drag.value < -40f) { IslandController.dismiss();drag.snapTo(0f) } else drag.animateTo(0f,IslandMotion.morph()) })
             .clickable(enabled=!state.replying) { IslandController.tap() },contentAlignment=Alignment.TopCenter

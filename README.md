@@ -62,3 +62,5 @@ References: [Android accessibility overlays](https://developer.android.com/refer
 ## Verification limits
 
 **Not tested on a real device:** Xiaomi 17/HyperOS camera cutout and island alignment, touch/IME behaviour in an accessibility overlay, real app call actions, inline reply delivery/echoes, music handoff and vendor action icons, root permission/commands/restore, redacted OTP recovery, landscape and foldable layouts, battery/background service survival. Unit tests cover camera top estimation, OTP boundaries/context and action mapping, duplicate timing and reply-echo suppression. CI validates compilation, lint and minified packaging, then runs Compose UI checks on an API 35 emulator and captures settings, dialogs, message/call/code and music transitions. Emulator checks do not validate Xiaomi-specific behaviour.
+
+The 1.3 update was implemented against the supplied videos and screenshots. Updating the Figma board remains blocked by the Professional Collab-seat MCP tool quota.

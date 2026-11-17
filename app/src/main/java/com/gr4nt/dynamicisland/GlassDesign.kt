@@ -51,15 +51,16 @@ fun Modifier.softGlass(shape: Shape=RoundedCornerShape(26.dp), overlay: Boolean=
     val p=LocalGlassPalette.current
     this.clip(shape).drawWithCache {
         val outline=shape.createOutline(size,layoutDirection,this)
-        val fill=if(overlay) Color.Black else tint?.copy(alpha=.80f) ?: p.fill
+        val fill=tint?.copy(alpha=.80f) ?: if(overlay) p.overlayFill else p.fill
         val sheen=Brush.verticalGradient(listOf(Color.White.copy(alpha=if(p.dark).14f else .36f),Color.Transparent),endY=size.height*.65f)
         val lower=Brush.verticalGradient(listOf(Color.Transparent,Color.Black.copy(alpha=if(p.dark).16f else .025f)))
         val edge=Brush.verticalGradient(listOf(Color.White.copy(alpha=if(p.dark).32f else .96f),p.rim.copy(alpha=if(p.dark).10f else .38f),p.rim.copy(alpha=if(p.dark).16f else .54f)))
         onDrawWithContent {
             drawOutline(outline,fill)
-            if(!overlay) { drawRect(sheen);drawRect(lower) }
+            drawRect(sheen)
+            drawRect(lower)
             drawContent()
-            if(!overlay) drawOutline(outline,edge,style=Stroke(.8.dp.toPx()))
+            drawOutline(outline,edge,style=Stroke(.8.dp.toPx()))
         }
     }
 }
