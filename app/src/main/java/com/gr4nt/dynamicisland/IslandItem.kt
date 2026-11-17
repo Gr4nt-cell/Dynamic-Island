@@ -22,5 +22,5 @@ data class IslandItem(
     val appIcon: Bitmap? = null, val largeIcon: Bitmap? = null, val intent: PendingIntent? = null,
     val actions: List<IslandAction> = emptyList(), val call: Boolean = false, val incoming: Boolean = false,
     val avatar: Bitmap? = null, val media: MediaInfo? = null, val code: String? = null,
-    val accent: Int = 0xffa4d8b4.toInt(), val callStartedAtElapsed: Long? = null, val status: StatusInfo? = null
+    val accent: Int = 0xffa4d8b4.toInt(), val callStartedAtElapsed: Long? = null, val status: StatusInfo? = null, val dialing: Boolean = false
 )

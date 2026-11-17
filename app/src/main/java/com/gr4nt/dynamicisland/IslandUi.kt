@@ -86,10 +86,21 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     val pillWidth=if(item.status != null)236.dp else if(item.call)144.dp else 108.dp
     var lastSecondary by remember { mutableStateOf<IslandItem?>(null) }
     if(state.secondary!=null) lastSecondary=state.secondary
-    BoxWithConstraints(Modifier.fillMaxWidth(),contentAlignment=Alignment.TopCenter) {
+    // The window stays at the pill position; the card slides down to the camera clearance with the same spring.
+    val ctx=LocalContext.current;val phys=ctx.resources.displayMetrics.density
+    val cutout=ctx.getSystemService(android.view.WindowManager::class.java).maximumWindowMetrics.windowInsets.displayCutout?.boundingRectTop
+    val camTop=cutout?.let { NotificationRules.cameraTop(it.top,it.bottom,it.width()) } ?: (10*phys).toInt()
+    val extraPx=((camTop-layout.gap*phys)-10*phys).coerceAtLeast(0f)
+    val topPad by animateDpAsState(if(compact) 0.dp else with(LocalDensity.current) { extraPx.toDp() },if(compact) spring(1f,1100f) else spring(.8f,800f),label="top pad")
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(top=topPad),contentAlignment=Alignment.TopCenter) {
         val cardWidth=maxWidth
-        val shellWidth by animateDpAsState(if(compact)pillWidth else cardWidth,spring(.74f,750f),label="shell width")
+        // HyperOS-style: collapsing is critically damped (no wobble, ~200 ms); expanding keeps a faint overshoot.
+        val morph: FiniteAnimationSpec<Dp> = if(compact) spring(1f,1100f) else spring(.8f,800f)
+        val shellWidth by animateDpAsState(if(compact)pillWidth else cardWidth,morph,label="shell width")
         val widthProgress=if(cardWidth>pillWidth) ((shellWidth-pillWidth)/(cardWidth-pillWidth)).coerceIn(0f,1f) else 1f
+        // Card content leaves first, pill content arrives last, so the two never overlap mid-morph.
+        val cardA=((widthProgress-.55f)/.45f).coerceIn(0f,1f)
+        val pillA=((.45f-widthProgress)/.45f).coerceIn(0f,1f)
         val corners=RoundedCornerShape(layout.topLeft.dp,layout.topRight.dp,layout.bottomRight.dp,layout.bottomLeft.dp)
         val contentAlpha=minOf(((opening.value-.4f)/.6f).coerceIn(0f,1f),reveal.value)
         Box(Modifier.width(shellWidth).graphicsLayer {
@@ -99,7 +110,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             alpha=(opening.value*4).coerceIn(0f,1f)
             translationY=drag.value-6.dp.toPx()*(1-opening.value)
         }.softGlass(corners,overlay=true,black=true)
-            .animateContentSize(spring(.76f,750f))
+            .animateContentSize(if(compact) spring(1f,1100f) else spring(.8f,800f))
             .draggable(rememberDraggableState { delta -> scope.launch { drag.snapTo((drag.value+delta).coerceAtMost(0f)) } },Orientation.Vertical,
                 onDragStopped={ if(drag.value < -40f) { IslandController.dismiss();drag.snapTo(0f) } else drag.animateTo(0f,spring(.75f,800f)) })
             .clickable(enabled=!state.replying) { IslandController.tap() }
@@ -111,18 +122,18 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
                 if(item.media!=null && !item.call) {
                     // Each state measures at its final width, even while the shell is narrow.
                     Box(contentAlignment=Alignment.TopCenter) {
-                        if(widthProgress < .99f) MusicPill(item,Modifier.requiredWidth(108.dp).alpha(1-widthProgress))
-                        if(widthProgress > .01f) Column(Modifier.requiredWidth(cardWidth).alpha(widthProgress)) {
+                        if(widthProgress < .99f) MusicPill(item,Modifier.requiredWidth(108.dp).alpha(pillA))
+                        if(widthProgress > .01f) Column(Modifier.requiredWidth(cardWidth).alpha(cardA)) {
                             CameraBand(layout)
                             MusicCard(item,Modifier.padding(horizontal=20.dp,vertical=8.dp))
                         }
                     }
                 } else if(item.status!=null) Box(contentAlignment=Alignment.TopCenter) {
-                    if(widthProgress < .99f) StatusPill(item.status,Modifier.requiredWidth(pillWidth).alpha(1-widthProgress))
-                    if(widthProgress > .01f) Column(Modifier.requiredWidth(cardWidth).alpha(widthProgress)) { CameraBand(layout);StatusCard(item.status) }
+                    if(widthProgress < .99f) StatusPill(item.status,Modifier.requiredWidth(pillWidth).alpha(pillA))
+                    if(widthProgress > .01f) Column(Modifier.requiredWidth(cardWidth).alpha(cardA)) { CameraBand(layout);StatusCard(item.status) }
                 } else if(item.call) Box(contentAlignment=Alignment.TopCenter) {
-                    if(widthProgress < .99f) CallPill(item,Modifier.requiredWidth(pillWidth).alpha(1-widthProgress))
-                    if(widthProgress > .01f) Box(Modifier.requiredWidth(cardWidth).alpha(widthProgress)) { CallCard(item) }
+                    if(widthProgress < .99f) CallPill(item,Modifier.requiredWidth(pillWidth).alpha(pillA))
+                    if(widthProgress > .01f) Box(Modifier.requiredWidth(cardWidth).alpha(cardA)) { CallCard(item) }
                 }
                 else Column(Modifier.requiredWidth(cardWidth)) {
                     CameraBand(layout)
@@ -159,30 +170,36 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     if(bitmap!=null) Image(bitmap.asImageBitmap(),null,modifier.size(size).clip(RoundedCornerShape(size/4)),contentScale=ContentScale.Crop)
     else Box(modifier.size(size).clip(RoundedCornerShape(size/4)).background(Color(0xFF30343D)),contentAlignment=Alignment.Center) { Icon(Icons.Rounded.MusicNote,null,Modifier.size(size*.6f),tint=Secondary) }
 }
+private val ActionLavender=Color(0xFFB4B8FF)
+/** Android heads-up layout: big app icon, "App • now", bold title, full text, link chip and text actions. */
 @Composable private fun MessageCard(item: IslandItem, replying: Boolean, modifier: Modifier) {
-    Column(modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-            Art(item.appIcon,16.dp);IslandText(item.app,12,LocalAccent.current,FontWeight.SemiBold,lines=1);IslandText("· now",12,Secondary)
-        }
-        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            if(item.largeIcon!=null && item.code==null) Image(item.largeIcon.asImageBitmap(),null,Modifier.size(44.dp).clip(CircleShape),contentScale=ContentScale.Crop)
-            Column(Modifier.weight(1f,fill=false),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(3.dp)) {
-                Text(item.title,color=Color.White,fontSize=17.sp,fontWeight=FontWeight.SemiBold,textAlign=androidx.compose.ui.text.style.TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis,letterSpacing=(-.3).sp)
-                if(item.code!=null) Text(item.code,color=LocalAccent.current,fontSize=28.sp,fontWeight=FontWeight.Bold,letterSpacing=3.sp)
-                else Text(item.text,color=Secondary,fontSize=14.sp,textAlign=androidx.compose.ui.text.style.TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis,letterSpacing=(-.3).sp)
+    val link=remember(item.text) { Regex("https?://\\S+").find(item.text)?.value }
+    Row(modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(14.dp)) {
+        Art(item.appIcon,46.dp)
+        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
+            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+                Text(item.app,color=Secondary,fontSize=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f,fill=false))
+                Text("•  now",color=Secondary,fontSize=13.sp,maxLines=1)
             }
-        }
-        if(replying) ReplyField(item)
-        else if(item.code!=null) ActionPill("Copy code",Icons.Rounded.ContentCopy) { IslandController.copyCode() }
-        else if(item.actions.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            item.actions.forEach { action ->
-                val kind=if(action.reply) "reply" else action.kind
-                val vector=when(kind) { "reply"->ReplyVector;"read"->ReadVector;"delete"->Icons.Rounded.DeleteOutline;"archive"->Icons.Rounded.Archive;else->null }
-                if(kind=="reply" || kind=="read") RoundButton(action.title.ifBlank { kind },vector ?: ReplyVector,if(kind=="reply")Color(0xFF0A84FF) else Color(0xFFBF5AF2),38.dp) { IslandController.action(action) }
-                else ActionPill(action.title,vector,action.icon) { IslandController.action(action) }
+            Text(item.title,color=Color.White,fontSize=17.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,letterSpacing=(-.3).sp)
+            if(item.code!=null) Text(item.code,color=LocalAccent.current,fontSize=30.sp,fontWeight=FontWeight.Bold,letterSpacing=3.sp)
+            Text(item.text,color=Color.White.copy(alpha=.72f),fontSize=15.sp,lineHeight=21.sp,maxLines=6,overflow=TextOverflow.Ellipsis,letterSpacing=(-.2).sp)
+            if(link!=null && !replying) Row(Modifier.padding(top=6.dp).height(40.dp).iosClickable { IslandController.openLink(link) }
+                .border(1.2.dp,Color.White.copy(alpha=.8f),CircleShape).padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Rounded.Language,null,Modifier.size(20.dp),tint=Color.White)
+                Text("Open link",color=Color.White,fontSize=15.sp)
+            }
+            if(replying) ReplyField(item)
+            else Row(Modifier.padding(top=4.dp).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(22.dp),verticalAlignment=Alignment.CenterVertically) {
+                if(item.code!=null) ActionText("Copy code") { IslandController.copyCode() }
+                item.actions.take(3).forEach { action -> ActionText(action.title.ifBlank { if(action.reply) "Reply" else "Open" }) { IslandController.action(action) } }
             }
         }
     }
+}
+@Composable private fun ActionText(label: String, click: ()->Unit) {
+    Text(label.uppercase(),color=ActionLavender,fontSize=14.sp,fontWeight=FontWeight.Medium,letterSpacing=.4.sp,maxLines=1,
+        modifier=Modifier.iosClickable(pressedScale=.92f,onClick=click).padding(vertical=10.dp))
 }
 @Composable private fun ReplyField(item: IslandItem) {
     var reply by remember(item.key) { mutableStateOf("") }
@@ -213,7 +230,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
                     val initial=item.title.trim().firstOrNull()?.takeIf { it.isLetter() }
                     if(initial!=null) IslandText(initial.uppercase(),20,weight=FontWeight.SemiBold) else Icon(Icons.Rounded.Person,null,tint=Color.White)
                 } }
-                Column(Modifier.weight(1f)) { if(item.incoming) Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)) { Icon(Icons.Rounded.PhoneAndroid,null,Modifier.size(11.dp),tint=Secondary);IslandText("mobile",11,Secondary,lines=1) };IslandText(item.title,17,weight=FontWeight.SemiBold,lines=1);IslandText(if(item.incoming) "Incoming Call" else "Ongoing Call",13,if(item.incoming)IslandGreen else Secondary,lines=2) }
+                Column(Modifier.weight(1f)) { if(item.incoming) Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)) { Icon(Icons.Rounded.PhoneAndroid,null,Modifier.size(11.dp),tint=Secondary);IslandText("mobile",11,Secondary,lines=1) };IslandText(item.title,17,weight=FontWeight.SemiBold,lines=1);IslandText(if(item.incoming) "Incoming Call" else if(item.dialing && item.callStartedAtElapsed==null) "Calling…" else "Ongoing Call",13,if(item.incoming)IslandGreen else Secondary,lines=2) }
             }
             Row(Modifier.width(side),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
                 if(decline!=null) RoundButton(if(item.incoming) "Decline call" else "Hang up",Icons.Rounded.CallEnd,IslandRed) { IslandController.action(decline) }
@@ -306,14 +323,14 @@ private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);ret
 }
 
 @Composable private fun CallPill(item: IslandItem, modifier: Modifier) {
-    val fallbackStart=remember(item.key) { android.os.SystemClock.elapsedRealtime() }
-    val start=item.callStartedAtElapsed ?: fallbackStart
+    val start=item.callStartedAtElapsed ?: android.os.SystemClock.elapsedRealtime()
     var duration by remember(start) { mutableLongStateOf((android.os.SystemClock.elapsedRealtime()-start).coerceAtLeast(0)) }
     LaunchedEffect(start) { while(true) { duration=(android.os.SystemClock.elapsedRealtime()-start).coerceAtLeast(0);delay(1000) } }
+    val waiting=item.callStartedAtElapsed==null && item.dialing
     Row(modifier.height(37.dp).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
         Icon(Icons.Rounded.Call,"Call",Modifier.size(15.dp),tint=IslandGreen)
         Spacer(Modifier.width(4.dp))
-        Text(clock(duration),color=IslandGreen,fontSize=13.sp,fontWeight=FontWeight.SemiBold,maxLines=1,modifier=Modifier.semantics { contentDescription="Call duration ${clock(duration)}" })
+        Text(if(waiting) "Calling…" else clock(duration),color=IslandGreen,fontSize=13.sp,fontWeight=FontWeight.SemiBold,maxLines=1,modifier=Modifier.semantics { contentDescription=if(waiting) "Calling" else "Call duration ${clock(duration)}" })
         Spacer(Modifier.weight(1f))
         val t=rememberInfiniteTransition(label="callwave")
         Row(horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically) {

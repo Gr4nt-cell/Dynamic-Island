@@ -35,7 +35,9 @@ class IslandAccessibilityService : AccessibilityService() {
         IslandController.connected.value=true
         StatusEvents.start(this)
         IslandController.setFocusable={ focus -> focused=focus;updateWindow() }
-        scope.launch { IslandController.settings.flow.collect { runCatching { rebuild() } } }
+        // Build the window once; the composable collects layout itself, so sliders only need a cheap window update.
+        runCatching { rebuild() }
+        scope.launch { IslandController.settings.flow.drop(1).collect { runCatching { updateWindow() } } }
         scope.launch { IslandController.state.map { Triple(it.item?.key, it.expanded, it.item != null) }.distinctUntilChanged().collect { runCatching { updateWindow() } } }
     }
     private fun makeParams(): WindowManager.LayoutParams {
@@ -53,7 +55,7 @@ class IslandAccessibilityService : AccessibilityService() {
         ).apply {
             gravity=Gravity.TOP or Gravity.CENTER_HORIZONTAL
             x=((l.left-l.right)*density/2).toInt()
-            y=if((IslandController.state.value.item?.media != null || IslandController.state.value.item?.status != null || (IslandController.state.value.item?.call==true && IslandController.state.value.item?.incoming==false)) && !IslandController.state.value.expanded) (10*density).toInt() else (cameraTop-l.gap*density).toInt()
+            y=(10*density).toInt() // Fixed: the island animates its own top padding instead of jumping the window.
             if(IslandController.state.value.item == null) flags=flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             softInputMode=WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE

@@ -53,7 +53,7 @@ object IslandController {
                     it.pkg==item.pkg && it.title==item.title && !it.incoming
                 }
             val callItem=if(item.incoming) item.copy(media=null) else item.copy(media=null,callStartedAtElapsed=
-                known?.callStartedAtElapsed ?: item.callStartedAtElapsed ?: now)
+                known?.callStartedAtElapsed ?: item.callStartedAtElapsed ?: if(item.dialing) null else now)
             // Some dialers replace the incoming notification with a new ongoing key.
             if(!item.incoming && (known==null || previous?.key==item.key)) calls.entries.removeAll { it.value.pkg==item.pkg && it.value.incoming }
             calls[item.key]=callItem
@@ -82,6 +82,10 @@ object IslandController {
         val item=IslandItem("status:${info.kind}","system","System",info.label,info.value,status=info)
         display(item,expanded)
         if(!expanded) timer=scope.launch { delay(millis); if(state.value.item?.key==item.key && !state.value.expanded) fallback() }
+    }
+    fun openLink(url: String) {
+        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        collapse()
     }
     fun openBatterySaver() {
         runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }

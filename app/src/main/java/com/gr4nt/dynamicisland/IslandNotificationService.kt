@@ -113,7 +113,10 @@ class IslandNotificationService : NotificationListenerService() {
         }.getOrNull() ?: icon else icon
         val base=IslandItem(sbn.key,pkg,app,title,text,callIcon,cover,n.contentIntent,actions,call,incoming,avatar,media,NotificationRules.code("$title $text"),accent,callStart)
         val kind=if(call || media != null) null else activityKind(n,pkg)
-        if(kind == null) return base
+        // No chronometer plus "calling/ringing" wording means the call has not been answered yet.
+        val dialing=call && !incoming && !e.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER) &&
+            Regex("(?i)calling|dialing|dialling|ringing|connecting|outgoing|trying").containsMatchIn("$title $text ${e.getCharSequence(Notification.EXTRA_SUB_TEXT)}")
+        if(kind == null) return base.copy(dialing=dialing)
         val wall=System.currentTimeMillis();val elapsed=SystemClock.elapsedRealtime()
         val countdown=e.getBoolean("android.chronometerCountDown")
         val whenMs=n.`when`.takeIf { it > 0 } ?: wall
