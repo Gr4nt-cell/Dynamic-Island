@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
@@ -152,6 +153,26 @@ class GlassUiTest {
         compose.onNodeWithText("A little closer").assertIsDisplayed();capture("music-card-light")
         compose.runOnIdle { expanded.value=false };compose.mainClock.advanceTimeBy(1200)
         capture("music-pill-after-collapse")
+    }
+    @Test fun largeCardsUseIdenticalDimensionsAndOpaqueBlackInLightMode() {
+        scene("large-notification-black",false,base.copy(text="A long message with enough detail to need the large card. ".repeat(3)))
+        compose.onNodeWithTag("island-shell").assertWidthIsEqualTo(366.dp).assertHeightIsEqualTo(224.dp)
+        val bitmap=compose.onNodeWithTag("island-shell").captureToImage().asAndroidBitmap()
+        val pixel=bitmap.getPixel(bitmap.width/2,bitmap.height-12)
+        assertEquals(android.graphics.Color.BLACK,pixel)
+    }
+    @Test fun chargingAndLowBatteryUseTheSameSmallShell() {
+        val item=mutableStateOf(base.copy(title="Charging",text="82%",event=IslandEvent.CHARGING))
+        compose.mainClock.autoAdvance=false
+        compose.setContent { IslandTheme(forceDark=false) { Box(Modifier.fillMaxSize()) { GlassBackdrop(Modifier.matchParentSize());IslandOverlay(IslandState(item.value),IslandLayout()) } } }
+        compose.mainClock.advanceTimeBy(1200)
+        compose.onNodeWithTag("island-shell").assertWidthIsEqualTo(250.dp).assertHeightIsEqualTo(48.dp)
+        capture("charging-small-black")
+        compose.runOnIdle { item.value=base.copy(key="low",title="Low Battery",text="20%",event=IslandEvent.LOW_BATTERY) }
+        compose.mainClock.advanceTimeBy(1200)
+        compose.onNodeWithTag("island-shell").assertWidthIsEqualTo(250.dp).assertHeightIsEqualTo(48.dp)
+        compose.onNodeWithText("Low Battery").assertIsDisplayed()
+        capture("battery-small-black")
     }
     @Test fun settingsLightAndPreview() {
         compose.setContent { IslandTheme(forceDark=false) { SettingsScreen() } }

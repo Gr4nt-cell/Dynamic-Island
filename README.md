@@ -1,3 +1,16 @@
+## Version 1.3 — reference motion and four island sizes
+
+All islands use opaque black backgrounds, white titles, gray supporting text, original app/album art and colored status/action controls. The settings retain their glass appearance. The overlay uses one spring-driven shell for width, height and corner radius; content fades out before a layout switch and fades in after expansion begins. The physical camera anchor does not jump when a pill expands.
+
+| Tier | Default size (dp) | Content |
+| --- | --- | --- |
+| Large | 366 × 224 | Expanded media, long messages, actionable notifications, codes and replies |
+| Medium | 366 × 96 | Expanded calls and brief notifications |
+| Small expanded | 250 × 48 | Charging, low battery, ringer and wired headphones |
+| Pill | 148 × 37 | Media artwork/waveform or call duration/dialer |
+
+Media and non-media content share the same large shell. App identity never changes dimensions. Narrow screens cap width to available space; the global size preference scales presets together. Long messages scroll inside the large shell. System events are received locally while notification access is connected; connecting the listener does not replay the current charging state. Wired headphone events are supported; Bluetooth device battery metadata is not synthesized.
+
 # Dynamic Island for Android
 
 Kotlin / Jetpack Compose, Android 11+ (minSdk 30), target Android 15 (35). Package: `com.gr4nt.dynamicisland`.

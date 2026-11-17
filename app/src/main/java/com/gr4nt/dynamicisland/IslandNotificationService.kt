@@ -12,15 +12,17 @@ import kotlinx.coroutines.*
 
 class IslandNotificationService : NotificationListenerService() {
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
+    private val systemEvents by lazy { SystemIslandEvents(this) }
     private val controllers=mutableMapOf<String,Pair<MediaController,MediaController.Callback>>()
     private val notifications=mutableMapOf<String,StatusBarNotification>()
     private val revisions=mutableMapOf<String,Long>()
     override fun onListenerConnected() {
         IslandController.listenerConnected.value=true
+        systemEvents.start()
         // Restore persistent call/media state without replaying all old messages.
         activeNotifications?.forEach { receive(it,true) }
     }
-    override fun onListenerDisconnected() { IslandController.listenerConnected.value=false;clear() }
+    override fun onListenerDisconnected() { IslandController.listenerConnected.value=false;systemEvents.stop();clear() }
     override fun onNotificationPosted(sbn: StatusBarNotification) { receive(sbn,false) }
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         notifications.remove(sbn.key);revisions.remove(sbn.key)
@@ -114,5 +116,5 @@ class IslandNotificationService : NotificationListenerService() {
         return if(count==0) 0xffa4d8b4.toInt() else Color.rgb((red/count).toInt(),(green/count).toInt(),(blue/count).toInt())
     }
     private fun clear() { controllers.values.forEach { it.first.unregisterCallback(it.second) };notifications.keys.toList().forEach { IslandController.removed(it) };controllers.clear();notifications.clear();revisions.clear() }
-    override fun onDestroy() { clear();scope.cancel();IslandController.listenerConnected.value=false;super.onDestroy() }
+    override fun onDestroy() { systemEvents.stop();clear();scope.cancel();IslandController.listenerConnected.value=false;super.onDestroy() }
 }

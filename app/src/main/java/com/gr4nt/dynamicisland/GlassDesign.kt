@@ -36,7 +36,6 @@ data class GlassPalette(val dark: Boolean) {
 val LocalGlassPalette=staticCompositionLocalOf { GlassPalette(true) }
 val Secondary: Color @Composable get()=LocalGlassPalette.current.secondary
 val SettingsAccent: Color @Composable get()=LocalGlassPalette.current.accent
-val IosEase=CubicBezierEasing(.22f,1f,.36f,1f)
 
 @Composable fun IslandTheme(forceDark: Boolean?=null, content: @Composable ()->Unit) {
     val dark=forceDark ?: isSystemInDarkTheme()
@@ -52,16 +51,15 @@ fun Modifier.softGlass(shape: Shape=RoundedCornerShape(26.dp), overlay: Boolean=
     val p=LocalGlassPalette.current
     this.clip(shape).drawWithCache {
         val outline=shape.createOutline(size,layoutDirection,this)
-        val fill=tint?.copy(alpha=.80f) ?: if(overlay) p.overlayFill else p.fill
+        val fill=if(overlay) Color.Black else tint?.copy(alpha=.80f) ?: p.fill
         val sheen=Brush.verticalGradient(listOf(Color.White.copy(alpha=if(p.dark).14f else .36f),Color.Transparent),endY=size.height*.65f)
         val lower=Brush.verticalGradient(listOf(Color.Transparent,Color.Black.copy(alpha=if(p.dark).16f else .025f)))
         val edge=Brush.verticalGradient(listOf(Color.White.copy(alpha=if(p.dark).32f else .96f),p.rim.copy(alpha=if(p.dark).10f else .38f),p.rim.copy(alpha=if(p.dark).16f else .54f)))
         onDrawWithContent {
             drawOutline(outline,fill)
-            drawRect(sheen)
-            drawRect(lower)
+            if(!overlay) { drawRect(sheen);drawRect(lower) }
             drawContent()
-            drawOutline(outline,edge,style=Stroke(.8.dp.toPx()))
+            if(!overlay) drawOutline(outline,edge,style=Stroke(.8.dp.toPx()))
         }
     }
 }
@@ -70,14 +68,14 @@ fun Modifier.iosClickable(enabled: Boolean=true, pressedScale: Float=.96f, onCli
     val interaction=remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if(pressed && enabled) pressedScale else 1f,
-        if(pressed) tween(90,easing=FastOutSlowInEasing) else spring(.72f,500f),label="iOS press")
+        if(pressed) IslandMotion.press() else IslandMotion.morph(),label="iOS press")
     this.graphicsLayer { scaleX=scale;scaleY=scale;alpha=if(enabled)1f else .44f }
         .clickable(enabled=enabled,interactionSource=interaction,indication=null,onClick=onClick)
 }
 fun Modifier.iosReveal(delayMillis: Long=0): Modifier = composed {
     val progress=remember { Animatable(0f) }
-    LaunchedEffect(Unit) { delay(delayMillis);progress.animateTo(1f,spring(.86f,420f)) }
-    this.graphicsLayer { alpha=progress.value.coerceIn(0f,1f);translationY=18.dp.toPx()*(1-progress.value);scaleX=.985f+.015f*progress.value;scaleY=scaleX }
+    LaunchedEffect(Unit) { delay(delayMillis);progress.animateTo(1f,IslandMotion.morph()) }
+    this.graphicsLayer { alpha=progress.value.coerceIn(0f,1f);translationY=8.dp.toPx()*(1-progress.value); }
 }
 
 @Composable fun GlassBackdrop(modifier: Modifier=Modifier) {
@@ -95,8 +93,8 @@ fun Modifier.iosReveal(delayMillis: Long=0): Modifier = composed {
 }
 @Composable fun IosSwitch(checked: Boolean, enabled: Boolean=true, label: String?=null, change: (Boolean)->Unit) {
     val p=LocalGlassPalette.current
-    val offset by animateDpAsState(if(checked)22.dp else 2.dp,spring(.82f,600f),label="switch position")
-    val colour by animateColorAsState(if(checked)Color(0xFF34C759).copy(alpha=.8f) else if(p.dark)Color(0xFF555A58) else Color(0xFFA8B4AD),tween(180),label="switch tint")
+    val offset by animateDpAsState(if(checked)22.dp else 2.dp,IslandMotion.settle(),label="switch position")
+    val colour by animateColorAsState(if(checked)Color(0xFF34C759).copy(alpha=.8f) else if(p.dark)Color(0xFF555A58) else Color(0xFFA8B4AD),IslandMotion.fadeIn(),label="switch tint")
     Box(Modifier.size(51.dp,31.dp).semantics { role=Role.Switch;if(label!=null)contentDescription=label;toggleableState=if(checked)ToggleableState.On else ToggleableState.Off }
         .iosClickable(enabled,pressedScale=.96f) { change(!checked) }.softGlass(CircleShape,tint=colour),contentAlignment=Alignment.CenterStart) {
         Box(Modifier.offset(x=offset).size(27.dp).clip(CircleShape).background(Brush.verticalGradient(listOf(Color.White,Color(0xFFE9EFEB)))).border(.6.dp,Color.White.copy(alpha=.85f),CircleShape))

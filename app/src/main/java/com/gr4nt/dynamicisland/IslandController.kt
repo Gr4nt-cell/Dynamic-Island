@@ -27,7 +27,7 @@ object IslandController {
     }
     fun post(item: IslandItem, silent: Boolean = false) {
         val layout = settings.flow.value
-        if (!layout.allApps && item.pkg !in layout.allowList) return
+        if (item.event==IslandEvent.NOTIFICATION && !layout.allApps && item.pkg !in layout.allowList) return
         val now = SystemClock.elapsedRealtime()
         if(gate.blocked(item.key,item.pkg,now)) return
         if (item.media != null && !item.call) {
@@ -133,7 +133,7 @@ object IslandController {
     fun toast(text: String) { Toast.makeText(context,text,Toast.LENGTH_SHORT).show() }
     fun preview(kind: String = "message") {
         val base=IslandItem("preview","preview","Messages","Ama","See you in a few minutes. I’m bringing the camera.")
-        display(when(kind){"call"->base.copy(app="Phone",call=true,incoming=true);"ongoing"->base.copy(app="Phone",call=true,incoming=false,callStartedAtElapsed=SystemClock.elapsedRealtime()-42000);"code"->base.copy(app="Verification",title="Verification code",text="Your code is 482916",code="482916");else->base},kind!="ongoing")
-        if(kind=="call" || kind=="ongoing") timer=scope.launch { delay(6000);removed("preview") }
+        display(when(kind){"call"->base.copy(app="Phone",call=true,incoming=true);"ongoing"->base.copy(app="Phone",call=true,incoming=false,callStartedAtElapsed=SystemClock.elapsedRealtime()-42000);"media"->base.copy(app="Music",title="A little closer",text="Evening Sessions",media=MediaInfo(null,222000,84000,SystemClock.elapsedRealtime(),1f,true),accent=0xffbf5af2.toInt());"music-pill"->base.copy(app="Music",title="A little closer",text="Evening Sessions",media=MediaInfo(null,222000,84000,SystemClock.elapsedRealtime(),1f,true),accent=0xffbf5af2.toInt());"charging"->base.copy(title="Charging",text="82%",event=IslandEvent.CHARGING);"battery"->base.copy(title="Low Battery",text="20%",event=IslandEvent.LOW_BATTERY);"large"->base.copy(text="See you in a few minutes. I am bringing the camera and everything we need for the photoshoot this afternoon.");"code"->base.copy(app="Verification",title="Verification code",text="Your code is 482916",code="482916");else->base},kind!="ongoing" && kind!="music-pill")
+        if(kind in setOf("call","ongoing","media","music-pill")) timer=scope.launch { delay(6000);removed("preview") }
     }
 }
