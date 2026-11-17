@@ -82,8 +82,8 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
     }
     val item=state.item ?: retained
     if(item == null) { Spacer(Modifier.size(1.dp));return }
-    val compact=(item.media != null || (item.call && !item.incoming)) && !state.expanded
-    val pillWidth=if(item.call)144.dp else 108.dp
+    val compact=(item.media != null || item.status != null || (item.call && !item.incoming)) && !state.expanded
+    val pillWidth=if(item.status != null)236.dp else if(item.call)144.dp else 108.dp
     BoxWithConstraints(Modifier.fillMaxWidth(),contentAlignment=Alignment.TopCenter) {
         val cardWidth=maxWidth
         val shellWidth by animateDpAsState(if(compact)pillWidth else cardWidth,spring(.74f,750f),label="shell width")
@@ -115,6 +115,9 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
                             MusicCard(item,Modifier.padding(horizontal=20.dp,vertical=8.dp))
                         }
                     }
+                } else if(item.status!=null) Box(contentAlignment=Alignment.TopCenter) {
+                    if(widthProgress < .99f) StatusPill(item.status,Modifier.requiredWidth(pillWidth).alpha(1-widthProgress))
+                    if(widthProgress > .01f) Column(Modifier.requiredWidth(cardWidth).alpha(widthProgress)) { CameraBand(layout);StatusCard(item.status) }
                 } else if(item.call) Box(contentAlignment=Alignment.TopCenter) {
                     if(widthProgress < .99f) CallPill(item,Modifier.requiredWidth(pillWidth).alpha(1-widthProgress))
                     if(widthProgress > .01f) Box(Modifier.requiredWidth(cardWidth).alpha(widthProgress)) { CallCard(item) }
@@ -203,7 +206,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
                     val initial=item.title.trim().firstOrNull()?.takeIf { it.isLetter() }
                     if(initial!=null) IslandText(initial.uppercase(),20,weight=FontWeight.SemiBold) else Icon(Icons.Rounded.Person,null,tint=Color.White)
                 } }
-                Column(Modifier.weight(1f)) { IslandText(item.title,17,weight=FontWeight.SemiBold,lines=1);IslandText(if(item.incoming) "Incoming Call" else "Ongoing Call",13,if(item.incoming)IslandGreen else Secondary,lines=2) }
+                Column(Modifier.weight(1f)) { if(item.incoming) Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)) { Icon(Icons.Rounded.PhoneAndroid,null,Modifier.size(11.dp),tint=Secondary);IslandText("mobile",11,Secondary,lines=1) };IslandText(item.title,17,weight=FontWeight.SemiBold,lines=1);IslandText(if(item.incoming) "Incoming Call" else "Ongoing Call",13,if(item.incoming)IslandGreen else Secondary,lines=2) }
             }
             Row(Modifier.width(side),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
                 if(decline!=null) RoundButton(if(item.incoming) "Decline call" else "Hang up",Icons.Rounded.CallEnd,IslandRed) { IslandController.action(decline) }
@@ -230,27 +233,43 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
 @Composable private fun MusicCard(item: IslandItem,modifier: Modifier) {
     val media=item.media ?: return
     var position by remember(item.key) { mutableLongStateOf(media.elapsed()) }
-    LaunchedEffect(media) { while(true) { position=media.elapsed();delay(1000) } }
+    LaunchedEffect(media) { while(true) { position=media.elapsed();delay(500) } }
     Column(modifier,verticalArrangement=Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Art(item.largeIcon,52.dp)
-            Column(Modifier.weight(1f)) { IslandText(item.title,17,weight=FontWeight.SemiBold);IslandText(item.text,14,Secondary) }
-        }
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
-            val controls=item.actions.filterNot { it.reply }.filter { Regex("(?i)prev|back|rewind|play|pause|next|forward").containsMatchIn(it.title) }.take(3)
-            if(controls.isNotEmpty()) controls.forEachIndexed { i,a ->
-                NotificationIconButton(a,if(i==1)48.dp else 38.dp) { IslandController.action(a) }
-            } else {
-                RoundButton("Previous",Icons.Rounded.SkipPrevious,Color.Transparent,38.dp) { media.controller?.transportControls?.skipToPrevious() }
-                RoundButton(if(media.playing)"Pause" else "Play",if(media.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,Color.Transparent,48.dp) { if(media.playing)media.controller?.transportControls?.pause() else media.controller?.transportControls?.play() }
-                RoundButton("Next",Icons.Rounded.SkipNext,Color.Transparent,38.dp) { media.controller?.transportControls?.skipToNext() }
+            Art(item.largeIcon,56.dp)
+            Column(Modifier.weight(1f)) { Text(item.title,color=Color.White,fontSize=16.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis);Text(item.text,color=Secondary,fontSize=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis) }
+            val t=rememberInfiniteTransition(label="musicwave")
+            Row(horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically) {
+                repeat(5) { i ->
+                    val h by t.animateFloat(5f+(i%3)*2,20f-(i%2)*4,infiniteRepeatable(tween(330+i*80,easing=LinearEasing),RepeatMode.Reverse),label="mw$i")
+                    Box(Modifier.width(2.5.dp).height(if(media.playing) h.dp else 4.dp).clip(CircleShape).background(LocalAccent.current))
+                }
             }
         }
-        Box(Modifier.fillMaxWidth().height(3.dp).clip(CircleShape).background(LocalGlassPalette.current.track)) {
-            Box(Modifier.fillMaxWidth(if(media.duration>0) (position.toFloat()/media.duration).coerceIn(0f,1f) else 0f).fillMaxHeight().background(Brush.horizontalGradient(listOf(LocalAccent.current,Color(0xFFFF2D55)))))
+        val fraction=if(media.duration>0) (position.toFloat()/media.duration).coerceIn(0f,1f) else 0f
+        Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(Color.White.copy(alpha=.22f))) {
+                Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(Color.White.copy(alpha=.85f)))
+            }
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+                Text(clock(position),color=Secondary,fontSize=11.sp)
+                Text(if(media.duration>0) "-"+clock(media.duration-position) else "",color=Secondary,fontSize=11.sp)
+            }
         }
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) { IslandText(clock(position),11,Secondary);IslandText(clock(media.duration),11,Secondary) }
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceEvenly) {
+            val controls=item.actions.filterNot { it.reply }.filter { Regex("(?i)prev|back|rewind|play|pause|next|forward").containsMatchIn(it.title) }.take(3)
+            if(controls.size==3) controls.forEachIndexed { i,a -> NotificationIconButton(a,if(i==1)54.dp else 44.dp) { IslandController.action(a) } }
+            else {
+                PlainControl(Icons.Rounded.FastRewind,"Previous",44.dp) { media.controller?.transportControls?.skipToPrevious() }
+                PlainControl(if(media.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(media.playing)"Pause" else "Play",54.dp) { if(media.playing)media.controller?.transportControls?.pause() else media.controller?.transportControls?.play() }
+                PlainControl(Icons.Rounded.FastForward,"Next",44.dp) { media.controller?.transportControls?.skipToNext() }
+            }
+            PlainControl(Icons.Rounded.Cast,"Output",36.dp) { IslandController.openOutputSwitcher() }
+        }
     }
+}
+@Composable private fun PlainControl(vector: ImageVector,label: String,size: Dp,click: ()->Unit) {
+    Box(Modifier.size(size).iosClickable(pressedScale=.86f,onClick=click),contentAlignment=Alignment.Center) { Icon(vector,label,Modifier.size(size*.78f),tint=Color.White) }
 }
 private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);return "%d:%02d".format(seconds/60,seconds%60) }
 @Composable private fun iconBitmap(icon: AndroidIcon?): Bitmap? {
@@ -259,9 +278,9 @@ private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);ret
 }
 @Composable private fun NotificationIconButton(a: IslandAction, size: Dp, click: ()->Unit) {
     val b=iconBitmap(a.icon)
-    Box(Modifier.size(size).iosClickable(pressedScale=.88f,onClick=click).softGlass(CircleShape,tint=LocalAccent.current.copy(alpha=.5f)),contentAlignment=Alignment.Center) {
-        if(b!=null) Image(b.asImageBitmap(),a.title,Modifier.size(size*.65f),colorFilter=ColorFilter.tint(LocalGlassPalette.current.text))
-        else Icon(if(a.title.contains("pause",true))Icons.Rounded.Pause else if(a.title.contains("next",true))Icons.Rounded.SkipNext else if(a.title.contains("prev",true))Icons.Rounded.SkipPrevious else Icons.Rounded.PlayArrow,a.title,tint=LocalGlassPalette.current.text)
+    Box(Modifier.size(size).iosClickable(pressedScale=.86f,onClick=click),contentAlignment=Alignment.Center) {
+        if(b!=null) Image(b.asImageBitmap(),a.title,Modifier.size(size*.7f),colorFilter=ColorFilter.tint(Color.White))
+        else Icon(if(a.title.contains("pause",true))Icons.Rounded.Pause else if(a.title.contains("next",true))Icons.Rounded.FastForward else if(a.title.contains("prev",true))Icons.Rounded.FastRewind else Icons.Rounded.PlayArrow,a.title,tint=Color.White)
     }
 }
 @Composable fun RoundButton(label: String, vector: ImageVector, color: Color, size: Dp=42.dp, click: ()->Unit) {
@@ -295,6 +314,51 @@ private fun clock(ms: Long): String { val seconds=(ms/1000).coerceAtLeast(0);ret
                 val h by t.animateFloat(4f+(i%3)*2,15f-(i%2)*3,infiniteRepeatable(tween(320+i*70,easing=LinearEasing),RepeatMode.Reverse),label="cw$i")
                 Box(Modifier.width(2.5.dp).height(h.dp).clip(CircleShape).background(IslandGreen))
             }
+        }
+    }
+}
+
+private fun statusColor(argb: Int) = Color(argb)
+@Composable private fun BatteryGlyph(level: Int, color: Color) {
+    Canvas(Modifier.size(26.dp,12.dp)) {
+        val bodyW=size.width-3.dp.toPx();val r=androidx.compose.ui.geometry.CornerRadius(3.5.dp.toPx())
+        drawRoundRect(color.copy(alpha=.4f),size=androidx.compose.ui.geometry.Size(bodyW,size.height),cornerRadius=r,style=androidx.compose.ui.graphics.drawscope.Stroke(1.2.dp.toPx()))
+        val pad=2.dp.toPx();val w=((bodyW-pad*2)*(level.coerceIn(0,100)/100f)).coerceAtLeast(2.dp.toPx())
+        drawRoundRect(color,topLeft=androidx.compose.ui.geometry.Offset(pad,pad),size=androidx.compose.ui.geometry.Size(w,size.height-pad*2),cornerRadius=androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()))
+        drawRoundRect(color.copy(alpha=.5f),topLeft=androidx.compose.ui.geometry.Offset(bodyW+1.dp.toPx(),size.height*.32f),size=androidx.compose.ui.geometry.Size(1.6.dp.toPx(),size.height*.36f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()))
+    }
+}
+@Composable private fun StatusLeading(s: StatusInfo) {
+    when(s.kind) {
+        "silent" -> Box(Modifier.size(34.dp,24.dp).clip(CircleShape).background(Color(0xFFFF3B30)),contentAlignment=Alignment.Center) { Icon(Icons.Rounded.NotificationsOff,"Silent",Modifier.size(17.dp),tint=Color.White) }
+        "ring" -> Icon(Icons.Rounded.Notifications,"Ring",Modifier.size(19.dp).padding(start=2.dp),tint=Color.White)
+        "vibrate" -> Icon(Icons.Rounded.Vibration,"Vibrate",Modifier.size(20.dp).padding(start=2.dp),tint=Color.White)
+        "headset" -> Icon(Icons.Rounded.Headphones,"Headphones",Modifier.size(20.dp).padding(start=2.dp),tint=Color.White)
+        "hotspot" -> Icon(Icons.Rounded.WifiTethering,"Hotspot",Modifier.size(20.dp).padding(start=2.dp),tint=statusColor(s.color))
+        "dnd" -> Icon(Icons.Rounded.Bedtime,"Do Not Disturb",Modifier.size(20.dp).padding(start=2.dp),tint=statusColor(s.color))
+        else -> Text(s.label,color=Color.White,fontSize=14.sp,fontWeight=FontWeight.Medium,maxLines=1,modifier=Modifier.padding(start=4.dp))
+    }
+}
+@Composable private fun StatusTrailing(s: StatusInfo) {
+    val color=if(s.kind=="ring"||s.kind=="vibrate"||s.kind=="headset") Color.White else statusColor(s.color)
+    Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+        Text(s.value,color=color,fontSize=14.sp,fontWeight=FontWeight.Medium,maxLines=1)
+        if(s.level>=0) BatteryGlyph(s.level,statusColor(s.color))
+    }
+}
+@Composable private fun StatusPill(s: StatusInfo, modifier: Modifier) {
+    Row(modifier.height(37.dp).padding(horizontal=10.dp),verticalAlignment=Alignment.CenterVertically) {
+        StatusLeading(s);Spacer(Modifier.weight(1f));StatusTrailing(s)
+    }
+}
+@Composable private fun StatusCard(s: StatusInfo) {
+    Column(Modifier.fillMaxWidth().padding(horizontal=22.dp,vertical=10.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { StatusLeading(s) }
+            StatusTrailing(s)
+        }
+        if(s.action=="battery_saver") Box(Modifier.fillMaxWidth().height(46.dp).iosClickable { IslandController.openBatterySaver() }.clip(CircleShape).background(Color(0xFF2C2C2E)),contentAlignment=Alignment.Center) {
+            Text("Battery Saver",color=Color.White,fontSize=16.sp,fontWeight=FontWeight.Medium)
         }
     }
 }

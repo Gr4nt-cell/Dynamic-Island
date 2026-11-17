@@ -70,6 +70,21 @@ object IslandController {
         if(gate.duplicate(item.pkg,item.title,item.text,now)) return
         display(item,true)
     }
+    /** Short system pill (ring mode, charging, headset...). Never interrupts a ringing call or a reply. */
+    fun postStatus(info: StatusInfo, expanded: Boolean = false, millis: Long = 3200) {
+        val s=state.value
+        if(s.replying || s.item?.let { it.call && it.incoming }==true) return
+        val item=IslandItem("status:${info.kind}","system","System",info.label,info.value,status=info)
+        display(item,expanded)
+        if(!expanded) timer=scope.launch { delay(millis); if(state.value.item?.key==item.key && !state.value.expanded) fallback() }
+    }
+    fun openBatterySaver() {
+        runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        collapse()
+    }
+    fun openOutputSwitcher() {
+        runCatching { context.startActivity(Intent(android.provider.Settings.Panel.ACTION_VOLUME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
     private fun display(item: IslandItem, expanded: Boolean) {
         timer?.cancel(); setFocusable(false)
         state.value=IslandState(item,expanded,false,state.value.generation+1)
@@ -84,7 +99,8 @@ object IslandController {
     fun collapse() {
         setFocusable(false)
         val item=state.value.item
-        if(item?.call == true && !item.incoming) display(item,false)
+        if(item?.status != null) fallback()
+        else if(item?.call == true && !item.incoming) display(item,false)
         else if(item?.media != null && item.media.playing && item.key !in hiddenMedia) display(item,false) else fallback()
     }
     private fun fallback() {
@@ -107,7 +123,7 @@ object IslandController {
     }
     fun tap() {
         val s=state.value;val item=s.item ?: return
-        if((item.media != null || (item.call && !item.incoming)) && !s.expanded) display(item,true)
+        if((item.media != null || (item.call && !item.incoming) || item.status != null) && !s.expanded) display(item,true)
         else if(!s.replying) { sendIntent { item.intent?.send() }; collapse() }
     }
     fun reply() { timer?.cancel();state.value=state.value.copy(replying=true);setFocusable(true) }
@@ -133,6 +149,11 @@ object IslandController {
     fun toast(text: String) { Toast.makeText(context,text,Toast.LENGTH_SHORT).show() }
     fun preview(kind: String = "message") {
         val base=IslandItem("preview","preview","Messages","Ama","See you in a few minutes. I’m bringing the camera.")
+        if(kind.startsWith("status:")) { postStatus(when(kind.removePrefix("status:")) {
+            "silent"->StatusInfo("silent","","Silent",0xFFFF3B30.toInt())
+            "ring"->StatusInfo("ring","","Ring")
+            "charging"->StatusInfo("charging","Charging","82%",0xFF30D158.toInt(),82)
+            else->StatusInfo("lowbattery","Low Battery","20%",0xFFFF3B30.toInt(),20,"battery_saver") },false,5000);return }
         display(when(kind){"call"->base.copy(app="Phone",call=true,incoming=true);"ongoing"->base.copy(app="Phone",call=true,incoming=false,callStartedAtElapsed=SystemClock.elapsedRealtime()-42000);"code"->base.copy(app="Verification",title="Verification code",text="Your code is 482916",code="482916");else->base},kind!="ongoing")
         if(kind=="call" || kind=="ongoing") timer=scope.launch { delay(6000);removed("preview") }
     }
