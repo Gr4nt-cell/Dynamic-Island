@@ -5,7 +5,7 @@ data class LiveActivity(val kind: ActivityKind, val baseElapsed: Long? = null, v
 
 object ActivityRules {
     fun kind(ongoing: Boolean, category: String?, chronometer: Boolean, countdown: Boolean, pkg: String, title: String, text: String): ActivityKind? {
-        if(!ongoing) return null
+        if(!ongoing || Regex("(?i)\\b(paused|stopped|finished|cancelled|canceled)\\b").containsMatchIn("$title $text")) return null
         if(category=="navigation") return ActivityKind.NAVIGATION
         if(!chronometer) return null
         val label="$pkg $title $text"

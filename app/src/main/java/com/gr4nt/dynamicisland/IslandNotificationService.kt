@@ -23,19 +23,20 @@ class IslandNotificationService : NotificationListenerService() {
     }
     override fun onListenerDisconnected() { IslandController.listenerConnected.value=false;IslandController.updateSystemMonitoring();clear();runCatching { requestRebind(android.content.ComponentName(this,IslandNotificationService::class.java)) } }
     override fun onNotificationPosted(sbn: StatusBarNotification) { receive(sbn,false) }
-    override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        notifications.remove(sbn.key);revisions.remove(sbn.key)
-        controllers.remove(sbn.key)?.let { it.first.unregisterCallback(it.second) }
-        IslandController.removed(sbn.key)
+    override fun onNotificationRemoved(sbn: StatusBarNotification) { forget(sbn.key) }
+    private fun forget(key: String) {
+        notifications.remove(key);revisions.remove(key)
+        controllers.remove(key)?.let { it.first.unregisterCallback(it.second) }
+        IslandController.removed(key)
     }
     private fun receive(sbn: StatusBarNotification, silent: Boolean) {
         val n=sbn.notification
         if(sbn.packageName == packageName || n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
         val call=n.category == Notification.CATEGORY_CALL || n.extras.containsKey("android.callType")
-        val media=n.category == Notification.CATEGORY_TRANSPORT || n.extras.containsKey(Notification.EXTRA_MEDIA_SESSION)
+        val media=n.category!="navigation" && (n.category == Notification.CATEGORY_TRANSPORT || n.extras.containsKey(Notification.EXTRA_MEDIA_SESSION))
         val activity=if(call || media)null else activityKind(n,sbn.packageName)
-        if(n.flags and Notification.FLAG_ONGOING_EVENT != 0 && !call && !media && activity==null) return
-        if(n.category in listOf(Notification.CATEGORY_PROGRESS,Notification.CATEGORY_SERVICE) && !call && !media && activity==null) return
+        if(n.flags and Notification.FLAG_ONGOING_EVENT != 0 && !call && !media && activity==null) { forget(sbn.key);return }
+        if(n.category in listOf(Notification.CATEGORY_PROGRESS,Notification.CATEGORY_SERVICE) && !call && !media && activity==null) { forget(sbn.key);return }
         notifications[sbn.key]=sbn
         val revision=(revisions[sbn.key] ?: 0)+1;revisions[sbn.key]=revision
         scope.launch {
@@ -46,7 +47,7 @@ class IslandNotificationService : NotificationListenerService() {
                 if(!recovered.isNullOrBlank()) result=item.copy(text=recovered,code=NotificationRules.code(recovered))
             }
             if(revisions[sbn.key] != revision) return@launch
-            if(result.call) controllers.remove(sbn.key)?.let { it.first.unregisterCallback(it.second) }
+            if(result.call || result.activity!=null) controllers.remove(sbn.key)?.let { it.first.unregisterCallback(it.second) }
             else attachMedia(sbn)
             IslandController.post(result,silent)
         }
@@ -83,9 +84,9 @@ class IslandNotificationService : NotificationListenerService() {
         val caller=e.getParcelable<Person>("android.callPerson")
         val avatar=runCatching { caller?.icon?.loadDrawable(this)?.softwareBitmap() }.getOrNull()
         if(call && !caller?.name.isNullOrBlank()) title=caller?.name.toString()
-        val controller=if(call) null else token(n)?.let { runCatching { MediaController(this,it) }.getOrNull() }
+        val controller=if(call || n.category=="navigation") null else token(n)?.let { runCatching { MediaController(this,it) }.getOrNull() }
         val metadata=controller?.metadata;val playback=controller?.playbackState
-        val isMedia = n.category == Notification.CATEGORY_TRANSPORT || token(n) != null
+        val isMedia = n.category!="navigation" && (n.category == Notification.CATEGORY_TRANSPORT || token(n) != null)
         val media=if(isMedia && !call) MediaInfo(controller,metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0,playback?.position?.coerceAtLeast(0) ?: 0,playback?.lastPositionUpdateTime ?: SystemClock.elapsedRealtime(),playback?.playbackSpeed ?: 1f,(playback?.state == PlaybackState.STATE_PLAYING || (playback == null && n.flags and Notification.FLAG_ONGOING_EVENT != 0))) else null
         if(media != null) {
             title=metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: title

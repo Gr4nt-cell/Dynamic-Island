@@ -247,7 +247,7 @@ class GlassUiTest {
                 IslandController.swap()
                 assertEquals(music.key,IslandController.state.value.item?.key)
                 assertEquals(nav.key,IslandController.state.value.secondary?.key)
-                IslandController.removed(nav.key)
+                IslandController.post(nav.copy(activity=null,text="Navigation stopped"),silent=true)
                 assertNull(IslandController.state.value.secondary)
                 assertEquals(music.key,IslandController.state.value.item?.key)
                 IslandController.post(music.copy(media=music.media!!.copy(playing=false)))

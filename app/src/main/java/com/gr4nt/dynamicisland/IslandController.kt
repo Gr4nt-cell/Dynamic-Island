@@ -31,6 +31,10 @@ object IslandController {
         if (item.event==IslandEvent.NOTIFICATION && !layout.allApps && item.pkg !in layout.allowList) return
         val now = SystemClock.elapsedRealtime()
         if(gate.blocked(item.key,item.pkg,now)) return
+        if(item.activity==null && item.media==null && !item.call && live.get(item.key)?.activity!=null) {
+            live.remove(item.key)
+            if(state.value.item?.key==item.key)fallback() else refreshSecondary()
+        }
         if(item.event!=IslandEvent.NOTIFICATION) {
             if(state.value.replying || state.value.item?.let { it.call && it.incoming }==true) return
             if(gate.duplicate(item.pkg,item.title,item.text,now)) return
@@ -114,6 +118,10 @@ object IslandController {
         val s=state.value
         val item=s.item ?: return
         if(item.call && item.incoming || s.replying)return
+        if(item.activity==null && item.media==null && !item.call && live.get(item.key)?.activity!=null) {
+            live.remove(item.key)
+            if(state.value.item?.key==item.key)fallback() else refreshSecondary()
+        }
         if(item.event!=IslandEvent.NOTIFICATION) {
             timer=scope.launch { delay(item.statusDurationMillis);if(state.value.item?.key==item.key)fallback() };return
         }

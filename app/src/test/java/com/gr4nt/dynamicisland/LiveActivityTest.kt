@@ -10,6 +10,7 @@ class LiveActivityTest {
         assertEquals(ActivityKind.STOPWATCH,ActivityRules.kind(true,"service",true,false,"clock","Stopwatch",""))
         assertEquals(ActivityKind.RECORDING,ActivityRules.kind(true,"service",true,false,"recorder","Recording",""))
         assertNull(ActivityRules.kind(true,"service",false,false,"vpn","Connected",""))
+        assertNull(ActivityRules.kind(true,"service",true,false,"recorder","Recording paused",""))
     }
     @Test fun chronologyUsesTheSystemBaseAndDirection() {
         assertEquals(15000L,ActivityRules.base(1005000,1000000,10000,true))
