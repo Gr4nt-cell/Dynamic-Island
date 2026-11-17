@@ -2,7 +2,7 @@
 
 Kotlin / Jetpack Compose, Android 11+ (minSdk 30), target Android 15 (35). Package: `com.gr4nt.dynamicisland`.
 
-A black, camera-aligned notification island hosted by an AccessibilityService in a `TYPE_ACCESSIBILITY_OVERLAY` window. There is **no Display over other apps or internet permission**. Notification access supplies message text, actions, calls, media sessions and verification codes. All processing is on-device; no notification history is written to disk.
+A soft-glass, camera-aligned notification island hosted by an AccessibilityService in a `TYPE_ACCESSIBILITY_OVERLAY` window. There is **no Display over other apps or internet permission**. Notification access supplies message text, actions, calls, media sessions and verification codes. All processing is on-device; no notification history is written to disk.
 
 ## Install and setup
 
@@ -42,10 +42,10 @@ The release is signed with the bundled public development key for personal use, 
 
 Editable [Figma design](https://www.figma.com/design/H1w0RWPXiDoIl9XmcXRp7m?node-id=5-858) includes the settings and message/call/code/reply/music layouts. Figma's Collab-seat tool quota stopped final board-height correction and visual validation: the outer board is currently clipped. The Compose implementation follows the supplied visual specification; the incomplete Figma board is not a verified pixel-perfect source.
 
-Black shell; 0.8 dp accent outline; no shadows; fake blurred art under a dark scrim; independent corner controls. One composition-scoped Animatable handles spring opening and 400 ms closing. Fixed-width card/pill layers crossfade during shell width animation; AnimatedContent is deliberately avoided.
+Fast Score soft glass: the same compact Pearl Mist artwork in light mode, AMOLED black in dark mode, milky fills, a neutral white rim and a soft static sheen. The coloured island outline and its setting have been removed, including for existing installs. Islands keep an opaque black lens mask; notification art supplies a fake frost without a backdrop halo. Buttons, switches, sliders, dialogs and settings groups share the material. Independent corner controls remain. Composition-scoped animations handle spring opening, content reveal, 400 ms closing, press compression, switch travel and expanding settings. Fixed-width card/pill layers crossfade during shell width animation; AnimatedContent is deliberately avoided.
 
 References: [Android accessibility overlays](https://developer.android.com/reference/android/view/WindowManager.LayoutParams#TYPE_ACCESSIBILITY_OVERLAY), [Android 15 OTP redaction](https://developer.android.com/about/versions/15/behavior-changes-all#otp-redaction), [Apple Live Activities HIG](https://developer.apple.com/design/human-interface-guidelines/live-activities).
 
 ## Verification limits
 
-**Not tested on a real device:** Xiaomi 17/HyperOS camera cutout and island alignment, touch/IME behaviour in an accessibility overlay, real app call actions, inline reply delivery/echoes, music handoff and vendor action icons, root permission/commands/restore, redacted OTP recovery, landscape and foldable layouts, battery/background service survival. Unit tests cover camera top estimation, OTP boundaries/context and action mapping, duplicate timing and reply-echo suppression. CI validates compilation, lint and minified packaging; it is not device validation.
+**Not tested on a real device:** Xiaomi 17/HyperOS camera cutout and island alignment, touch/IME behaviour in an accessibility overlay, real app call actions, inline reply delivery/echoes, music handoff and vendor action icons, root permission/commands/restore, redacted OTP recovery, landscape and foldable layouts, battery/background service survival. Unit tests cover camera top estimation, OTP boundaries/context and action mapping, duplicate timing and reply-echo suppression. CI validates compilation, lint and minified packaging, then runs Compose UI checks on an API 35 emulator and captures settings, dialogs, message/call/code and music transitions. Emulator checks do not validate Xiaomi-specific behaviour.

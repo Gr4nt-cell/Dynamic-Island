@@ -16,7 +16,7 @@ data class IslandLayout(
     val cameraSpace: Float = 6f, val bottomSpace: Float = 8f, val size: Float = 100f,
     val topLeft: Float = 44f, val topRight: Float = 44f,
     val bottomLeft: Float = 44f, val bottomRight: Float = 44f,
-    val seconds: Float = 6f, val outline: Boolean = true, val countdown: Boolean = false,
+    val seconds: Float = 6f, val countdown: Boolean = false,
     val allApps: Boolean = true, val allowList: Set<String> = emptySet(),
     val rootRecovery: Boolean = false
 )
@@ -26,7 +26,7 @@ class LayoutStore(private val context: Context, scope: CoroutineScope) {
         fun b(k: String, d: Boolean) = p[booleanPreferencesKey(k)] ?: d
         IslandLayout(f("left",10f), f("right",10f), f("gap",2f), f("cameraSpace",6f), f("bottomSpace",8f), f("size",100f),
             f("topLeft",44f),f("topRight",44f),f("bottomLeft",44f),f("bottomRight",44f),f("seconds",6f),
-            b("outline",true),b("countdown",false),b("allApps",true),p[stringSetPreferencesKey("allowList")] ?: emptySet(),b("rootRecovery",false))
+            b("countdown",false),b("allApps",true),p[stringSetPreferencesKey("allowList")] ?: emptySet(),b("rootRecovery",false))
     }.stateIn(scope, SharingStarted.Eagerly, IslandLayout())
     suspend fun number(key: String, value: Float) { context.preferences.edit { it[floatPreferencesKey(key)] = value } }
     suspend fun toggle(key: String, value: Boolean) { context.preferences.edit { it[booleanPreferencesKey(key)] = value } }

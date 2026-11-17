@@ -10,8 +10,9 @@ android {
         applicationId = "com.gr4nt.dynamicisland"
         minSdk = 30
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += "arm64-v8a" }
     }
     signingConfigs.getByName("debug") {
@@ -45,5 +46,10 @@ dependencies {
     implementation("androidx.savedstate:savedstate:1.2.1")
     implementation("androidx.datastore:datastore-preferences:1.1.4")
     implementation("androidx.core:core-ktx:1.15.0")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2025.04.01"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation("junit:junit:4.13.2")
 }
