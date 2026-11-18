@@ -29,6 +29,11 @@ class MainActivity : ComponentActivity() {
 }
 @Composable internal fun SettingsScreen() {
     val c=androidx.compose.ui.platform.LocalContext.current
+    var contactsGranted by remember { mutableStateOf(c.checkSelfPermission(android.Manifest.permission.READ_CONTACTS)==android.content.pm.PackageManager.PERMISSION_GRANTED) }
+    val contactsPermission=androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+        contactsGranted=granted
+        if(granted) IslandNotificationService.active?.refreshContacts()
+    }
     val palette=LocalGlassPalette.current
     val view=LocalView.current
     DisposableEffect(palette.dark) {
@@ -65,6 +70,12 @@ class MainActivity : ComponentActivity() {
             AccessRow("Overlay access",if(connected)"Connected" else "Set up",Icons.Rounded.Layers) { consent="accessibility" }
             HorizontalDivider(color=palette.track)
             AccessRow("Notification access",if(listener)"Connected" else "Set up",Icons.Rounded.Notifications) { consent="notifications" }
+            HorizontalDivider(color=palette.track)
+            AccessRow("Contact photos",if(contactsGranted)"Connected" else "Allow contacts",Icons.Rounded.AccountCircle) {
+                if(!contactsGranted) contactsPermission.launch(android.Manifest.permission.READ_CONTACTS)
+                else IslandNotificationService.active?.refreshContacts()
+            }
+            IslandText("Allow Contacts to show saved caller photos even when the dialer omits them. Photos stay on your device.",12,Secondary)
             IslandText("All notification content is processed on your device. No internet permission is requested.",12,Secondary)
         }
         SectionTitle("LAYOUT")

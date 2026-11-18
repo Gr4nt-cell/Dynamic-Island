@@ -378,7 +378,7 @@ private fun activityIcon(kind: ActivityKind)=when(kind) { ActivityKind.NAVIGATIO
 @Composable private fun CallCard(item: IslandItem) {
     val decline=item.actions.firstOrNull { it.kind=="decline" }
     val accept=item.actions.firstOrNull { it.kind=="accept" }
-    // Both side groups are centred in the shell, with an empty lane for the lens.
+    // Reserve only the actual control width so the caller name gets the remaining space.
     Row(Modifier.fillMaxSize().padding(horizontal=20.dp),verticalAlignment=Alignment.CenterVertically) {
         Row(Modifier.weight(1f),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(38.dp).testTag("call-avatar").clip(CircleShape).background(Brush.linearGradient(listOf(LocalIslandAccent.current,Color(0xFF64D2FF)))),contentAlignment=Alignment.Center) {
@@ -389,12 +389,12 @@ private fun activityIcon(kind: ActivityKind)=when(kind) { ActivityKind.NAVIGATIO
                 }
             }
             Column(Modifier.weight(1f)) {
-                IslandText(item.title,16,weight=FontWeight.SemiBold,lines=1)
+                IslandText(item.title,16,weight=FontWeight.SemiBold,lines=2,modifier=Modifier.testTag("call-name"))
                 IslandText(if(item.incoming) "Incoming Call" else if(item.callStartedAtElapsed==null) "Calling…" else "Ongoing Call",12,if(item.incoming || item.callStartedAtElapsed!=null) IslandGreen else Color(0xFFFF9F0A),lines=1)
             }
         }
-        Spacer(Modifier.width(36.dp))
-        Row(Modifier.weight(1f),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
+        Spacer(Modifier.width(12.dp))
+        Row(horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
             if(decline!=null) RoundButton(if(item.incoming) "Decline call" else "Hang up",Icons.Rounded.CallEnd,IslandRed,40.dp) { IslandController.action(decline) }
             if(item.incoming && accept!=null) { Spacer(Modifier.width(10.dp));RoundButton("Accept call",Icons.Rounded.Call,IslandGreen,40.dp) { IslandController.action(accept) } }
         }

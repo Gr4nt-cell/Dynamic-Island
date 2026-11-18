@@ -16,6 +16,7 @@ class IslandNotificationService : NotificationListenerService() {
     private val notifications=mutableMapOf<String,StatusBarNotification>()
     private val revisions=mutableMapOf<String,Long>()
     override fun onListenerConnected() {
+        active=this
         IslandController.listenerConnected.value=true
         IslandController.updateSystemMonitoring()
         // Restore persistent call/media state without replaying all old messages.
@@ -82,7 +83,7 @@ class IslandNotificationService : NotificationListenerService() {
         if(text.isBlank()) text=e.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.joinToString("\n").orEmpty()
         val call=n.category == Notification.CATEGORY_CALL || e.containsKey("android.callType")
         val caller=e.getParcelable<Person>("android.callPerson")
-        val avatar=if(call) CallPhoto.resolve(this,n) else null
+        val avatar=if(call) CallPhoto.resolve(this,n,caller?.name?.toString()?.takeIf { it.isNotBlank() } ?: title) else null
         if(call && !caller?.name.isNullOrBlank()) title=caller?.name.toString()
         val controller=if(call || n.category=="navigation") null else token(n)?.let { runCatching { MediaController(this,it) }.getOrNull() }
         val metadata=controller?.metadata;val playback=controller?.playbackState
@@ -125,5 +126,7 @@ class IslandNotificationService : NotificationListenerService() {
         return if(count==0) 0xffa4d8b4.toInt() else Color.rgb((red/count).toInt(),(green/count).toInt(),(blue/count).toInt())
     }
     private fun clear() { controllers.values.forEach { it.first.unregisterCallback(it.second) };notifications.keys.toList().forEach { IslandController.removed(it) };controllers.clear();notifications.clear();revisions.clear() }
-    override fun onDestroy() { clear();scope.cancel();IslandController.listenerConnected.value=false;IslandController.updateSystemMonitoring();super.onDestroy() }
+    companion object { var active: IslandNotificationService?=null; private set }
+    fun refreshContacts() { notifications.values.toList().forEach { receive(it,true) } }
+    override fun onDestroy() { active=null;clear();scope.cancel();IslandController.listenerConnected.value=false;IslandController.updateSystemMonitoring();super.onDestroy() }
 }

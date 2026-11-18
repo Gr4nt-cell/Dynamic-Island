@@ -36,6 +36,17 @@ class GlassUiTest {
     }
     @Test fun messageLight() { scene("message-light",false);compose.onNodeWithText("Ama").assertIsDisplayed() }
     @Test fun messageDark() { scene("message-dark",true);compose.onNodeWithText("Ama").assertIsDisplayed() }
+    @Test fun fullCallerNameAndPhotoFitTheCallCard() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val intent=PendingIntent.getActivity(context,0,Intent(context,MainActivity::class.java),PendingIntent.FLAG_IMMUTABLE)
+        val photo=Bitmap.createBitmap(32,32,Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLUE) }
+        scene("full-caller-name-photo",false,base.copy(title="Gladys Agyeiwaa",call=true,incoming=false,avatar=photo,actions=listOf(IslandAction("Hang up",intent,null))))
+        compose.onNodeWithContentDescription("Contact photo").assertIsDisplayed()
+        val layouts=mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        compose.onNodeWithTag("call-name",useUnmergedTree=true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertEquals("Gladys Agyeiwaa",layouts.single().layoutInput.text.text)
+        assertFalse("Caller name must be fully visible",layouts.single().hasVisualOverflow)
+    }
     @Test fun callLight() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         val intent=PendingIntent.getActivity(context,0,Intent(context,MainActivity::class.java),PendingIntent.FLAG_IMMUTABLE)
