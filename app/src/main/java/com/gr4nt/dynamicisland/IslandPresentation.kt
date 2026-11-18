@@ -17,7 +17,7 @@ object IslandPresentation {
         item.media != null -> IslandTier.LARGE
         item.activity!=null -> if(item.actions.isNotEmpty()) IslandTier.LARGE else IslandTier.MEDIUM
         item.event != IslandEvent.NOTIFICATION -> IslandTier.SMALL
-        item.code != null || item.actions.isNotEmpty() || MessageSizeRules.lines(item.text,45)>2 -> IslandTier.LARGE
+        item.code != null || MessageSizeRules.lines(item.text,45)>2 -> IslandTier.LARGE
         item.title.length<=12 && MessageSizeRules.lines(item.text,12)<=1 -> IslandTier.SMALL
         else -> IslandTier.MEDIUM
     }

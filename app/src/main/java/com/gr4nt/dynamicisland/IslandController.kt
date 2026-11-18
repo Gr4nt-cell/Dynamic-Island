@@ -7,7 +7,7 @@ import android.widget.Toast
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
-data class IslandState(val item: IslandItem? = null, val expanded: Boolean = true, val replying: Boolean = false, val generation: Long = 0, val secondary: IslandItem? = null, val swapGeneration: Long = 0)
+data class IslandState(val item: IslandItem? = null, val expanded: Boolean = true, val replying: Boolean = false, val generation: Long = 0, val secondary: IslandItem? = null, val swapGeneration: Long = 0, val details: Boolean = false)
 object IslandController {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     lateinit var context: Context
@@ -153,8 +153,9 @@ object IslandController {
         calls.remove(key);live.remove(key)
         if(state.value.item?.key == key) fallback() else refreshSecondary()
     }
-    fun tap() {
+    fun tap(revealActions: Boolean=false) {
         val s=state.value;val item=s.item ?: return
+        if(revealActions && !s.replying) { state.value=s.copy(details=true,expanded=true);schedule();return }
         if(item.event==IslandEvent.LOW_BATTERY) { openBatterySaver();return }
         if((item.media != null || item.activity!=null || (item.call && !item.incoming)) && !s.expanded) display(item,true)
         else if(!s.replying) { sendIntent { item.intent?.send() }; collapse() }

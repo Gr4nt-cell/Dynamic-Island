@@ -81,7 +81,8 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
 @Composable private fun measuredMessageTier(state: IslandState, available: Dp): IslandTier? {
     val item=state.item ?: return null
     val base=IslandPresentation.tier(item,state.expanded,state.replying)
-    if(state.replying || item.call || item.media!=null || item.activity!=null || item.event!=IslandEvent.NOTIFICATION || item.code!=null || item.actions.isNotEmpty())return base
+    if(state.details && item.actions.isNotEmpty())return IslandTier.LARGE
+    if(state.replying || item.call || item.media!=null || item.activity!=null || item.event!=IslandEvent.NOTIFICATION || item.code!=null)return base
     val measure=rememberTextMeasurer();val density=LocalDensity.current
     val small=(minOf(250f,available.value)-28f-36f)/2f
     fun lines(text: String,size: Int,width: Float): Int = measure.measure(AnnotatedString(text),TextStyle(fontSize=size.sp,lineHeight=(size+4).sp),
@@ -153,7 +154,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             .clip(shape).background(Color.Black)
             .draggable(rememberDraggableState { delta -> scope.launch { drag.snapTo((drag.value+delta).coerceAtMost(0f)) } },Orientation.Vertical,
                 onDragStopped={ if(drag.value < -40f) { IslandController.dismiss();drag.snapTo(0f) } else drag.animateTo(0f,IslandMotion.morph()) })
-            .clickable(enabled=!state.replying) { IslandController.tap() },contentAlignment=Alignment.TopCenter
+            .clickable(enabled=!state.replying) { IslandController.tap(revealActions=item.event==IslandEvent.NOTIFICATION && !item.call && item.media==null && item.activity==null && tier!=IslandTier.LARGE && item.actions.isNotEmpty()) },contentAlignment=Alignment.TopCenter
         ) {
             LensMask(Modifier.matchParentSize(),layout)
             // Measure content at its destination size while the shell morphs and clips it.

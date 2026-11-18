@@ -76,6 +76,7 @@ class MainActivity : ComponentActivity() {
         }
         SectionTitle("BEHAVIOUR")
         SettingsGroup {
+            IslandText("Messages resize to their text. Tap a short message to reveal Reply, Read and other available actions.",12,Secondary,lines=3)
             SettingSlider("Show time","seconds",layout.seconds,3f..20f,"seconds")
             SettingSwitch("Countdown line",layout.countdown) { scope.launch { settings.toggle("countdown",it) } }
             SettingSwitch("Handle all apps",layout.allApps) { scope.launch { settings.toggle("allApps",it) } }

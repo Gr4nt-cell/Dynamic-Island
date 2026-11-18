@@ -6,7 +6,7 @@ Persistent activities from `island-colour` are integrated into the current size/
 
 Unlock uses USER_PRESENT and a bounded, screen-on KeyguardManager check to confirm authentication. Android does not identify the system unlock modality to this app, so confirmation includes face, fingerprint, PIN and other successful unlocks. It does not read facial data or perform authentication. Hotspot announcements depend on the ROM delivering its hotspot-state broadcast. Audio-device callbacks use product labels without requesting Bluetooth device-address access.
 
-Messages use measured text wrapping and font scale to choose a shell: tiny single-line text in the small card, up to two lines in medium, and longer/actionable messages, codes and replies in large. Content never stretches a preset shell. All sizes, opaque black surfaces, vivid accents and the 16 dp default camera gap are preserved.
+Messages use measured text wrapping and font scale to choose a shell: tiny single-line text in the small card, up to two lines in medium, and longer messages, codes and replies in large. Actions do not force a short message into a large shell: tap it to reveal the available actions in the large card. Content never stretches a preset shell. All sizes, opaque black surfaces, vivid accents and the 16 dp default camera gap are preserved.
 
 ## Version 1.5
 

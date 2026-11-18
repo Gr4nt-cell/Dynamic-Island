@@ -306,6 +306,24 @@ class GlassUiTest {
         scene("bluetooth-headset-long-name",false,base.copy(title="Headphones",text="Redmi Buds 5 Pro",event=IslandEvent.HEADPHONES))
         compose.onNodeWithContentDescription("Headphones connected",useUnmergedTree=true).assertIsDisplayed().assertWidthIsEqualTo(18.dp)
     }
+    @Test fun shortActionableMessagesStartSmallAndExpandForActions() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val intent=PendingIntent.getActivity(context,91,Intent(context,MainActivity::class.java),PendingIntent.FLAG_IMMUTABLE)
+        val item=base.copy(key="short-action-message",pkg="test.short.actions",text="Hi",actions=listOf(IslandAction("Archive",intent,null)))
+        compose.mainClock.autoAdvance=false
+        compose.setContent { val state by IslandController.state.collectAsState();IslandTheme { Box(Modifier.fillMaxSize()) { GlassBackdrop(Modifier.matchParentSize());IslandOverlay(state,IslandLayout()) } } }
+        try {
+            compose.runOnIdle { IslandController.post(item) }
+            compose.mainClock.advanceTimeBy(1200)
+            compose.onNodeWithTag("island-shell").assertHeightIsEqualTo(48.dp)
+            compose.onNodeWithText("Archive").assertDoesNotExist()
+            compose.onNodeWithTag("island-shell").performClick()
+            compose.mainClock.advanceTimeBy(1200)
+            compose.onNodeWithTag("island-shell").assertHeightIsEqualTo(191.52.dp)
+            compose.onNodeWithText("Archive").assertIsDisplayed()
+            capture("short-message-actions-expanded")
+        } finally { compose.runOnIdle { IslandController.removed(item.key) } }
+    }
     @Test fun settingsLightAndPreview() {
         compose.setContent { IslandTheme(forceDark=false) { SettingsScreen() } }
         compose.onNodeWithText("Around your camera.").assertIsDisplayed();capture("settings-light")
