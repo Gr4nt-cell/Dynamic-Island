@@ -302,6 +302,10 @@ class GlassUiTest {
             compose.mainClock.advanceTimeBy(1200);capture("unlock-confirmation-system-island")
         } finally { compose.runOnIdle { listOf(IslandEvent.CHARGING,IslandEvent.LOW_BATTERY,IslandEvent.RINGER,IslandEvent.UNLOCK).forEach { IslandController.removed("system-${it.name}") } } }
     }
+    @Test fun longHeadsetNameKeepsTheConnectionIconVisible() {
+        scene("bluetooth-headset-long-name",false,base.copy(title="Headphones",text="Redmi Buds 5 Pro",event=IslandEvent.HEADPHONES))
+        compose.onNodeWithContentDescription("Headphones connected",useUnmergedTree=true).assertIsDisplayed().assertWidthIsEqualTo(18.dp)
+    }
     @Test fun settingsLightAndPreview() {
         compose.setContent { IslandTheme(forceDark=false) { SettingsScreen() } }
         compose.onNodeWithText("Around your camera.").assertIsDisplayed();capture("settings-light")

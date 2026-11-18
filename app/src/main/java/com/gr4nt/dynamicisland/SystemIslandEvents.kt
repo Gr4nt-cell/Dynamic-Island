@@ -38,6 +38,7 @@ class SystemIslandEvents(private val context: Context, private val scope: Corout
         knownAudio.clear();knownAudio.addAll(audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { it.id })
         audioCallback=object: AudioDeviceCallback() {
             override fun onAudioDevicesAdded(devices: Array<out AudioDeviceInfo>) {
+                if(!registered)return
                 devices.forEach { device ->
                     val new=knownAudio.add(device.id)
                     if(new && device.isSink && device.type in setOf(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,AudioDeviceInfo.TYPE_BLUETOOTH_SCO,AudioDeviceInfo.TYPE_BLE_HEADSET,AudioDeviceInfo.TYPE_WIRED_HEADSET,AudioDeviceInfo.TYPE_WIRED_HEADPHONES,AudioDeviceInfo.TYPE_USB_HEADSET)) {

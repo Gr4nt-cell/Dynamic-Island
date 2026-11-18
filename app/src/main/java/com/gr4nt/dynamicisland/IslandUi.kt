@@ -193,7 +193,7 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             enter=fadeIn(IslandMotion.fadeIn())+scaleIn(IslandMotion.settle(),initialScale=.55f),
             exit=fadeOut(IslandMotion.fadeOut())+scaleOut(IslandMotion.exit(),targetScale=.6f)) {
             (state.secondary ?: retainedSecondary)?.let { secondary ->
-                SideIsland(secondary,Modifier.blur((3f*(1f-handoff.value).coerceIn(0f,1f)).dp).graphicsLayer {
+                SideIsland(secondary,Modifier.blur((3f*(1f-handoff.value).coerceIn(0f,1f)).dp,BlurredEdgeTreatment.Unbounded).graphicsLayer {
                     val progress=handoff.value.coerceIn(0f,1f)
                     translationX=8.dp.toPx()*(1-progress);scaleX=.8f+.2f*progress;scaleY=scaleX
                 })
@@ -295,7 +295,7 @@ private fun activityIcon(kind: ActivityKind)=when(kind) { ActivityKind.NAVIGATIO
         IslandText(item.title,12,weight=FontWeight.SemiBold,lines=1,modifier=Modifier.weight(1f))
         Spacer(Modifier.width(36.dp))
         Row(Modifier.weight(1f),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
-            IslandText(item.text,12,color,lines=1)
+            IslandText(item.text,12,color,lines=1,modifier=Modifier.weight(1f,fill=false))
             Spacer(Modifier.width(5.dp))
             if(item.event==IslandEvent.CHARGING || item.event==IslandEvent.LOW_BATTERY) {
                 val level=item.text.filter { it.isDigit() }.toIntOrNull() ?: 0
@@ -306,7 +306,7 @@ private fun activityIcon(kind: ActivityKind)=when(kind) { ActivityKind.NAVIGATIO
                 IslandEvent.DND -> Icons.Rounded.Bedtime
                 IslandEvent.HEADPHONES -> Icons.Rounded.Headphones
                 else -> if(item.text=="Vibrate") Icons.Rounded.Vibration else if(item.title=="Silent") Icons.Rounded.NotificationsOff else Icons.Rounded.Notifications
-            },null,Modifier.size(18.dp).graphicsLayer { if(item.event==IslandEvent.UNLOCK) { scaleX=pop;scaleY=pop } },tint=color)
+            },if(item.event==IslandEvent.HEADPHONES) "Headphones connected" else null,Modifier.size(18.dp).graphicsLayer { if(item.event==IslandEvent.UNLOCK) { scaleX=pop;scaleY=pop } },tint=color)
         }
     }
 }
