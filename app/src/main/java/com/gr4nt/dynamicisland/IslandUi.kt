@@ -375,6 +375,19 @@ private fun activityIcon(kind: ActivityKind)=when(kind) { ActivityKind.NAVIGATIO
         RoundButton("Cancel reply",Icons.Rounded.Close,Color.Transparent,32.dp,foreground=IslandRed) { IslandController.cancelReply() }
     }
 }
+@Composable private fun CallName(name: String) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val density=LocalDensity.current
+        val measure=rememberTextMeasurer()
+        val width=with(density) { maxWidth.roundToPx() }.coerceAtLeast(1)
+        val font=(16 downTo 12).firstOrNull { size ->
+            !measure.measure(AnnotatedString(name),TextStyle(fontSize=size.sp,lineHeight=(size+4).sp,fontWeight=FontWeight.SemiBold,letterSpacing=(-.3).sp),
+                maxLines=2,overflow=TextOverflow.Ellipsis,constraints=Constraints(maxWidth=width)).hasVisualOverflow
+        }
+        IslandText(name,font ?: 12,weight=FontWeight.SemiBold,lines=if(font==null)1 else 2,
+            modifier=Modifier.fillMaxWidth().then(if(font==null)Modifier.basicMarquee() else Modifier).testTag("call-name"))
+    }
+}
 @Composable private fun CallCard(item: IslandItem) {
     val decline=item.actions.firstOrNull { it.kind=="decline" }
     val accept=item.actions.firstOrNull { it.kind=="accept" }
@@ -389,12 +402,12 @@ private fun activityIcon(kind: ActivityKind)=when(kind) { ActivityKind.NAVIGATIO
                 }
             }
             Column(Modifier.weight(1f)) {
-                IslandText(item.title,16,weight=FontWeight.SemiBold,lines=2,modifier=Modifier.testTag("call-name"))
+                CallName(item.title)
                 IslandText(if(item.incoming) "Incoming Call" else if(item.callStartedAtElapsed==null) "Calling…" else "Ongoing Call",12,if(item.incoming || item.callStartedAtElapsed!=null) IslandGreen else Color(0xFFFF9F0A),lines=1)
             }
         }
         Spacer(Modifier.width(12.dp))
-        Row(horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
+        Row(Modifier.width((if(decline!=null && item.incoming && accept!=null)88 else if(decline!=null || item.incoming && accept!=null)40 else 0).dp),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
             if(decline!=null) RoundButton(if(item.incoming) "Decline call" else "Hang up",Icons.Rounded.CallEnd,IslandRed,40.dp) { IslandController.action(decline) }
             if(item.incoming && accept!=null) { Spacer(Modifier.width(10.dp));RoundButton("Accept call",Icons.Rounded.Call,IslandGreen,40.dp) { IslandController.action(accept) } }
         }
