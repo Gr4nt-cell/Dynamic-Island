@@ -6,9 +6,9 @@ import android.graphics.drawable.Icon
 import android.media.session.*
 import android.os.SystemClock
 
-data class IslandAction(val title: String, val intent: PendingIntent, val icon: Icon?, val inputs: List<RemoteInput> = emptyList()) {
+data class IslandAction(val title: String, val intent: PendingIntent, val icon: Icon?, val inputs: List<RemoteInput> = emptyList(), val explicitKind: String? = null) {
     val reply get() = inputs.any { it.allowFreeFormInput }
-    val kind get() = NotificationRules.actionKind(title)
+    val kind get() = explicitKind ?: NotificationRules.actionKind(title)
 }
 data class MediaInfo(val controller: MediaController?, val duration: Long, val position: Long, val updatedAt: Long, val speed: Float, val playing: Boolean) {
     fun elapsed(): Long = (position + if(playing) ((SystemClock.elapsedRealtime()-updatedAt)*speed).toLong() else 0).coerceIn(0,duration.coerceAtLeast(0))

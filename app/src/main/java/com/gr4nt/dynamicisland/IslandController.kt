@@ -160,7 +160,7 @@ object IslandController {
         if(revealActions && !s.replying) { state.value=s.copy(details=true,expanded=true);schedule();return }
         if(item.event==IslandEvent.LOW_BATTERY) { openBatterySaver();return }
         if((item.media != null || item.activity!=null || (item.call && !item.incoming)) && !s.expanded) display(item,true)
-        else if(!s.replying) { sendIntent { item.intent?.send() }; collapse() }
+        else if(!s.replying) { sendIntent { item.intent?.let { if(!NotificationActionSender.send(context,it)) error("Expired intent") } }; collapse() }
     }
     fun reply() { timer?.cancel();state.value=state.value.copy(replying=true,secondary=null);setFocusable(true) }
     fun cancelReply() { setFocusable(false);state.value=state.value.copy(replying=false);schedule() }
@@ -179,7 +179,17 @@ object IslandController {
             gate.undoReply(item.key,item.pkg);toast("Reply action is no longer available")
         }
     }
-    fun action(action: IslandAction) { if(action.reply) reply() else { sendIntent { action.intent.send() }; if(state.value.item?.media == null || state.value.item?.call==true) collapse() } }
+    fun action(action: IslandAction) {
+        if(action.reply) { reply();return }
+        val item=state.value.item
+        if(!NotificationActionSender.send(context,action.intent)) {
+            toast(if(item?.call==true) "Call action expired. Open the dialer to answer." else "This notification action is no longer available")
+            return
+        }
+        // Sending is not confirmation: leave ringing controls visible until the dialer updates.
+        if(item?.call==true) return
+        if(item?.media==null) collapse()
+    }
     private fun sendIntent(block: ()->Unit) { runCatching(block).onFailure { toast("This notification action is no longer available") } }
     fun copyCode() { val code=state.value.item?.code ?: return;(context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Verification code",code));toast("Code copied");collapse() }
     fun openBatterySaver() {

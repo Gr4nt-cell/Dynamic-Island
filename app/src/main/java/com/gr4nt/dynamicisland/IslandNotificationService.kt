@@ -77,11 +77,12 @@ class IslandNotificationService : NotificationListenerService() {
         val app=runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg,0)).toString() }.getOrDefault(pkg)
         val icon=runCatching { packageManager.getApplicationIcon(pkg).softwareBitmap() }.getOrNull()
         val large=runCatching { n.getLargeIcon()?.loadDrawable(this)?.softwareBitmap() }.getOrNull()
-        val actions=n.actions.orEmpty().mapNotNull { a -> a.actionIntent?.let { IslandAction(a.title?.toString().orEmpty(),it,a.getIcon(),a.remoteInputs?.toList().orEmpty()) } }
+        val rawActions=n.actions.orEmpty().mapNotNull { a -> a.actionIntent?.let { IslandAction(a.title?.toString().orEmpty(),it,a.getIcon(),a.remoteInputs?.toList().orEmpty()) } }
         var title=e.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
         var text=(e.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: e.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()
         if(text.isBlank()) text=e.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.joinToString("\n").orEmpty()
         val call=n.category == Notification.CATEGORY_CALL || e.containsKey("android.callType")
+        val actions=if(call) CallActions.from(n,rawActions) else rawActions
         val caller=e.getParcelable<Person>("android.callPerson")
         val avatar=if(call) CallPhoto.resolve(this,n,caller?.name?.toString()?.takeIf { it.isNotBlank() } ?: title) else null
         if(call && !caller?.name.isNullOrBlank()) title=caller?.name.toString()
