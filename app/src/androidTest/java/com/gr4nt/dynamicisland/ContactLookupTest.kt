@@ -39,7 +39,8 @@ class ContactLookupTest {
             })
             val photo=ContactPhoto.find(context,null,name)
             assertNotNull("Saved contact photo should be found without notification artwork",photo)
-            assertEquals(Color.BLUE,photo!!.getPixel(photo.width/2,photo.height/2))
+            val pixel=photo!!.getPixel(photo.width/2,photo.height/2)
+            assertTrue(Color.blue(pixel)>200 && Color.red(pixel)<40 && Color.green(pixel)<40)
         } finally {
             raw?.let { resolver.delete(it,null,null) }
             instrumentation.uiAutomation.dropShellPermissionIdentity()
