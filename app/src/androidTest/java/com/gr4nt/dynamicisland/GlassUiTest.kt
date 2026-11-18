@@ -228,7 +228,11 @@ class GlassUiTest {
             compose.onNodeWithTag("secondary-island").performClick()
             compose.mainClock.advanceTimeBy(80);capture("hyperos-handoff")
             compose.mainClock.advanceTimeBy(1200)
-            compose.runOnIdle { assertEquals(nav.key,IslandController.state.value.item?.key);assertEquals(start,IslandController.state.value.secondary?.callStartedAtElapsed) }
+            compose.runOnIdle {
+                IslandController.post(call.copy(text="Background call refresh"))
+                assertEquals(nav.key,IslandController.state.value.item?.key)
+                assertEquals(start,IslandController.state.value.secondary?.callStartedAtElapsed)
+            }
             capture("dual-navigation-call")
             compose.onNodeWithTag("secondary-island").performClick()
             compose.mainClock.advanceTimeBy(1200)
@@ -247,6 +251,9 @@ class GlassUiTest {
                 IslandController.swap()
                 assertEquals(music.key,IslandController.state.value.item?.key)
                 assertEquals(nav.key,IslandController.state.value.secondary?.key)
+                IslandController.post(nav.copy(text="Continue 200 m",activity=nav.activity!!.copy(value="200 m")))
+                assertEquals(music.key,IslandController.state.value.item?.key)
+                assertEquals("200 m",IslandController.state.value.secondary?.activity?.value)
                 IslandController.post(nav.copy(activity=null,text="Navigation stopped"),silent=true)
                 assertNull(IslandController.state.value.secondary)
                 assertEquals(music.key,IslandController.state.value.item?.key)

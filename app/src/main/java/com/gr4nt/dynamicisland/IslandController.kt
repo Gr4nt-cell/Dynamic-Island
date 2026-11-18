@@ -41,6 +41,7 @@ object IslandController {
             display(item,false);return
         }
         if(item.activity!=null || item.media!=null && !item.call) {
+            val newActivity=live.get(item.key)==null
             live.put(item)
             val visible=state.value
             when {
@@ -49,7 +50,7 @@ object IslandController {
                     if(item.media?.playing==false && !visible.expanded) fallback() else refreshSecondary()
                 }
                 visible.item==null && live.active().any { it.key==item.key } -> display(item,false)
-                item.activity!=null && visible.item?.media!=null && !visible.expanded && live.active().any { it.key==item.key } -> display(item,false)
+                item.activity!=null && newActivity && visible.item?.media!=null && !visible.expanded && live.active().any { it.key==item.key } -> display(item,false)
                 else -> refreshSecondary()
             }
             return
@@ -76,7 +77,8 @@ object IslandController {
                 sameVisibleCall && previous?.incoming==item.incoming -> state.value=state.value.copy(item=callItem)
                 sameVisibleCall -> display(callItem,item.incoming)
                 item.incoming -> display(callItem,true)
-                previous==null || previous.media!=null || previous.activity!=null -> display(callItem,false)
+                previous==null -> display(callItem,false)
+                existing==null && known==null && (previous.media!=null || previous.activity!=null) -> display(callItem,false)
                 // An ongoing-call refresh must not replace a message or steal reply focus.
                 else -> Unit
             }
