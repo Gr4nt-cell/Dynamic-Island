@@ -130,7 +130,9 @@ private val ReadVector=ImageVector.Builder("Mark read",24.dp,24.dp,24f,24f).appl
             }
         }
     }
-    val item=if(state.item?.key==retained?.key) state.item ?: retained else retained
+    val stableContent=state.item?.key==retained?.key && measuredTier==retainedTier
+    SideEffect { if(stableContent && state.item!=null)retained=state.item }
+    val item=if(stableContent) state.item ?: retained else retained
     if(item==null) { Spacer(Modifier.size(1.dp));return }
     val tier=retainedTier
     val compact=tier==IslandTier.PILL

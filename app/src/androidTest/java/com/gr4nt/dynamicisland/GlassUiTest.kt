@@ -263,6 +263,8 @@ class GlassUiTest {
         compose.onNodeWithTag("island-shell").assertWidthIsEqualTo(250.dp).assertHeightIsEqualTo(48.dp)
         capture("short-message-small")
         compose.runOnIdle { item.value=item.value.copy(text="Two lines\nSee you soon") }
+        compose.mainClock.advanceTimeBy(32)
+        compose.onNodeWithText("Hi").assertIsDisplayed()
         compose.mainClock.advanceTimeBy(1200)
         compose.onNodeWithTag("island-shell").assertWidthIsEqualTo(366.dp).assertHeightIsEqualTo(96.dp)
         capture("two-line-message-medium")
