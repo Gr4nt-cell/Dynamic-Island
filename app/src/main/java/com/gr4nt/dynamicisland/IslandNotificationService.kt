@@ -82,7 +82,7 @@ class IslandNotificationService : NotificationListenerService() {
         if(text.isBlank()) text=e.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.joinToString("\n").orEmpty()
         val call=n.category == Notification.CATEGORY_CALL || e.containsKey("android.callType")
         val caller=e.getParcelable<Person>("android.callPerson")
-        val avatar=runCatching { caller?.icon?.loadDrawable(this)?.softwareBitmap() }.getOrNull()
+        val avatar=if(call) CallPhoto.resolve(this,n) else null
         if(call && !caller?.name.isNullOrBlank()) title=caller?.name.toString()
         val controller=if(call || n.category=="navigation") null else token(n)?.let { runCatching { MediaController(this,it) }.getOrNull() }
         val metadata=controller?.metadata;val playback=controller?.playbackState

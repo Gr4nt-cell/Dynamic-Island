@@ -382,7 +382,7 @@ private fun activityIcon(kind: ActivityKind)=when(kind) { ActivityKind.NAVIGATIO
     Row(Modifier.fillMaxSize().padding(horizontal=20.dp),verticalAlignment=Alignment.CenterVertically) {
         Row(Modifier.weight(1f),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(38.dp).testTag("call-avatar").clip(CircleShape).background(Brush.linearGradient(listOf(LocalIslandAccent.current,Color(0xFF64D2FF)))),contentAlignment=Alignment.Center) {
-                if(item.avatar!=null) Image(item.avatar.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+                if(item.avatar!=null) Image(item.avatar.asImageBitmap(),"Contact photo",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
                 else {
                     val initial=item.title.trim().firstOrNull()?.takeIf { it.isLetter() }
                     if(initial!=null) IslandText(initial.uppercase(),18,weight=FontWeight.SemiBold) else Icon(Icons.Rounded.Person,null,tint=Color.White)
