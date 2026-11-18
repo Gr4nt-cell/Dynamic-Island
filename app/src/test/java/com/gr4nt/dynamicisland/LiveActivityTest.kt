@@ -17,6 +17,8 @@ class LiveActivityTest {
         assertEquals(5000L,ActivityRules.base(995000,1000000,10000,false))
         assertNull(ActivityRules.base(0,1000000,10000,false))
         assertEquals("01:06",ActivityRules.summary("Arrive 01:06"))
+        assertEquals("0.5 km",ActivityRules.summary("Continue 0.5 km"))
+        assertEquals("1,2 km",ActivityRules.summary("Continue 1,2 km"))
     }
     @Test fun allAppsRemainAvailableWhenAnotherMusicSessionPosts() {
         val live=LiveIslandRegistry()

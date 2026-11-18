@@ -17,7 +17,7 @@ object ActivityRules {
     }
     fun base(whenMillis: Long, wallNow: Long, elapsedNow: Long, countdown: Boolean): Long? =
         if(whenMillis<=0) null else if(countdown) elapsedNow+(whenMillis-wallNow) else (elapsedNow-(wallNow-whenMillis)).coerceAtLeast(0)
-    fun summary(text: String): String = Regex("\\b\\d{1,2}:\\d{2}\\b|\\b\\d+\\s?(?:min|km|mi|m)\\b").find(text)?.value ?: text
+    fun summary(text: String): String = Regex("\\b\\d{1,2}:\\d{2}\\b|\\b\\d+(?:[.,]\\d+)?\\s?(?:min|km|mi|m)\\b").find(text)?.value ?: text
 }
 
 /** Keeps all apps, not just the most recently posted music session. */
