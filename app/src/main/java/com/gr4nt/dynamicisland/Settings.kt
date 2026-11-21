@@ -39,6 +39,8 @@ object NotificationRules {
     fun callStart(whenMillis: Long, chronometer: Boolean, incoming: Boolean, wallNow: Long, elapsedNow: Long): Long? =
         if(!incoming && chronometer && whenMillis in 1..wallNow) (elapsedNow-(wallNow-whenMillis)).coerceAtLeast(0) else null
     fun cameraTop(top: Int, bottom: Int, width: Int): Int = if(top == 0) (bottom-width).coerceAtLeast(0) else top
+    fun overlayTop(cameraTop: Int, gap: Float, density: Float): Int =
+        (cameraTop-gap*density).toInt().coerceAtLeast(0)
     fun actionKind(label: String): String {
         val t = label.lowercase()
         return when {

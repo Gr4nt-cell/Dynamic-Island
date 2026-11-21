@@ -53,7 +53,7 @@ class IslandAccessibilityService : AccessibilityService() {
         ).apply {
             gravity=Gravity.TOP or Gravity.CENTER_HORIZONTAL
             x=((l.left-l.right)*density/2).toInt()
-            y=(cameraTop-l.gap*density).toInt()
+            y=NotificationRules.overlayTop(cameraTop,l.gap,density)
             if(IslandController.state.value.item == null) flags=flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             softInputMode=WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE

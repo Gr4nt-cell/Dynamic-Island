@@ -3,6 +3,12 @@ import org.junit.Assert.*
 import org.junit.Test
 class NotificationRulesTest {
     @Test fun cameraRectAtScreenEdgeUsesEstimatedLensTop() { assertEquals(8, NotificationRules.cameraTop(0,40,32)); assertEquals(12,NotificationRules.cameraTop(12,44,32)) }
+    @Test fun overlayNeverStartsAboveTheScreen() {
+        assertEquals(0,NotificationRules.overlayTop(24,16f,3f))
+        assertEquals(0,NotificationRules.overlayTop(0,16f,3f))
+        assertEquals(24,NotificationRules.overlayTop(72,16f,3f))
+        assertEquals(72,NotificationRules.overlayTop(24,-16f,3f))
+    }
     @Test fun codesRequireContextAndDigitBoundaries() {
         assertEquals("123456",NotificationRules.code("Your verification code is 123456"))
         assertNull(NotificationRules.code("Your order is 123456"))
